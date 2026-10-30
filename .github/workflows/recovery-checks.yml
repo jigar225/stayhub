@@ -1,0 +1,82 @@
+name: StayHub recovery checks only
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: stayhub-recovery-checks-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  runner-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Confirm runner starts
+        run: |
+          echo "Recovery runner is executing; no deployment is configured."
+          date -u
+          uname -m
+  checks:
+    needs: runner-probe
+    timeout-minutes: 25
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18.6-alpine
+        env:
+          POSTGRES_USER: stayhub_test
+          POSTGRES_PASSWORD: ci-test-password
+          POSTGRES_DB: stayhub_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U stayhub_test -d stayhub_test"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      TEST_S3_BUCKET: stayhub-ci-test
+      S3_BUCKET: stayhub-ci-development
+      S3_ENDPOINT_URL: http://localhost:9000
+      S3_PUBLIC_ENDPOINT_URL: http://localhost:9000
+      S3_ACCESS_KEY: ci-storage-key
+      S3_SECRET_KEY: ci-storage-secret-123456
+      DATABASE_URL: postgresql+psycopg://stayhub_test:ci-test-password@localhost:5432/stayhub_test
+      TEST_DATABASE_URL: postgresql+psycopg://stayhub_test:ci-test-password@localhost:5432/stayhub_test
+      JWT_SECRET: ci-only-secret-never-used-in-deployment-123456
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.12.19'
+          python-version: '3.13'
+      - run: npm ci --prefix frontend
+      - run: npm --prefix frontend run lint && npm --prefix frontend run typecheck && npm --prefix frontend test && npm --prefix frontend run build
+      - run: uv sync --frozen --project backend
+      - run: backend/.venv/bin/python infra/tests/test_storage_credentials.py
+      - run: backend/.venv/bin/python infra/tests/test_deployment.py
+      - run: backend/.venv/bin/python infra/tests/test_frontend_delivery.py
+      - run: uv run --frozen ruff check . && uv run --frozen mypy app tests
+        working-directory: backend
+      - name: Start isolated test storage
+        run: |
+          docker run -d --name stayhub-ci-storage -p 9000:9000 \
+            -e RUSTFS_ACCESS_KEY=ci-storage-key \
+            -e RUSTFS_SECRET_KEY=ci-storage-secret-123456 \
+            -e RUSTFS_CONSOLE_ENABLE=false \
+            rustfs/rustfs:1.0.3-glibc /data
+      - name: Wait for local test storage
+        run: |
+          for attempt in $(seq 1 60); do
+            curl --fail --silent http://localhost:9000/health/ready && exit 0
+            sleep 2
+          done
+          exit 1
+      - run: uv run --frozen pytest
+        working-directory: backend
+      - uses: actions/upload-artifact@v4
+        with:
+          name: frontend
+          path: frontend/dist/
