@@ -7,9 +7,12 @@ terraform {
 provider "aws" {
   region              = "us-east-1"
   allowed_account_ids = ["762079300828"]
+  default_tags {
+    tags = { Project = "stayhub", Owner = "jigar", Name = "jigar-stayhub-state", ManagedBy = "terraform" }
+  }
 }
 resource "aws_s3_bucket" "state" {
-  bucket = "stayhub-762079300828-us-east-1-state"
+  bucket = "jigar-stayhub-762079300828-us-east-1-state"
   lifecycle { prevent_destroy = true }
 }
 resource "aws_s3_bucket_versioning" "state" {

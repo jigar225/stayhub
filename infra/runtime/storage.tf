@@ -31,7 +31,7 @@ resource "aws_s3_bucket_policy" "tls" {
   }] })
 }
 resource "aws_ecr_repository" "backend" {
-  name                 = "stayhub/backend"
+  name                 = "jigar-stayhub/backend"
   image_tag_mutability = "IMMUTABLE"
   force_delete         = false
   encryption_configuration { encryption_type = "AES256" }

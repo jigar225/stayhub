@@ -99,10 +99,10 @@ npm --prefix frontend run build
 release=$(git rev-parse HEAD)
 digest=$(python3 infra/deploy/package.py --frontend frontend/dist --output /tmp/stayhub-release.tar.gz)
 # Obtain these nonsecret values from terraform output github_variables:
-bucket=stayhub-sandbox-762079300828-releases
+bucket=jigar-stayhub-sandbox-762079300828-releases
 instance_id=REPLACE_WITH_EC2_INSTANCE_ID
 AWS_PROFILE=stayhub aws s3 cp /tmp/stayhub-release.tar.gz "s3://$bucket/releases/$release/$digest.tar.gz" --region us-east-1
-AWS_PROFILE=stayhub aws ssm send-command --region us-east-1 --instance-ids "$instance_id" --document-name stayhub-sandbox-deploy --parameters "Release=$release,Sha256=$digest"
+AWS_PROFILE=stayhub aws ssm send-command --region us-east-1 --instance-ids "$instance_id" --document-name jigar-stayhub-sandbox-deploy --parameters "Release=$release,Sha256=$digest"
 ```
 
 Inspect/wait for that SSM command's success; the send-command response alone does not mean deployed. No release script should be invoked directly outside the locked receiver. Active-identical retries probe without altering files; failed or previous IDs are immutable and need a new commit to redeploy. A manually invoked workflow rebuild can have a different frontend artifact digest for an existing commit; receipt intentionally rejects that conflict instead of replacing active files. Keep the original archive/digest for an exact retry.
@@ -137,3 +137,11 @@ backend/.venv/bin/python infra/tests/test_storage_credentials.py
 ```
 
 `test_deployment.py` uses a real loopback HTTPS server with an explicitly trusted temporary certificate; AWS/Docker/Nginx/systemd operations are stubs for release transitions. `test_proxy.py` uses real Nginx/Uvicorn containers and actual application rate-limit code. `run_application_checks.py` uses read-only source and disposable isolated Postgres/S3 containers. These two Docker tests expect a locally built `stayhub-api:latest` image with backend dependencies (`docker build -t stayhub-api backend` if absent). Test resources use unique names and are cleaned up; no development DB/bucket is selected. See `docs/deployment-readiness-evidence.md` for actual results and limits.
+
+## Shared-account resource naming
+
+New runtime resources use `jigar-stayhub-sandbox` names and `Owner=jigar` tags. ECR is `jigar-stayhub/backend`; the GitHub role is `jigar-stayhub-github-deploy`. Resource types without configurable names receive a prefixed Name tag where supported. The GitHub OIDC provider URL is an account-level identity and cannot be renamed; reuse/import an existing matching provider rather than creating a duplicate.
+
+State storage now targets `jigar-stayhub-762079300828-us-east-1-state`. Before this change, the old bucket was checked with ListObjectVersions: no versions or delete markers existed. The user is deleting that empty old bucket. Finish deletion before the next bootstrap plan: otherwise `prevent_destroy` correctly blocks replacement. Keep bootstrap local state; refresh during plan discovers the deleted bucket. Apply the newly reviewed bootstrap plan, then run `terraform -chdir=infra/runtime init -reconfigure` against the new empty backend. No runtime state migration is needed for this verified empty setup. Never reuse old saved plans.
+
+Local paths, AWS profile, database name, photo object prefixes and GitHub repository identity remain unchanged.

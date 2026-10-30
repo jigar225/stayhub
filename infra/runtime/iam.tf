@@ -3,7 +3,7 @@ resource "aws_iam_openid_connect_provider" "github" {
   client_id_list = ["sts.amazonaws.com"]
 }
 resource "aws_iam_role" "github" {
-  name = "stayhub-github-deploy"
+  name = "jigar-stayhub-github-deploy"
   assume_role_policy = jsonencode({ Version = "2012-10-17", Statement = [{
     Effect    = "Allow", Action = "sts:AssumeRoleWithWebIdentity"
     Principal = { Federated = aws_iam_openid_connect_provider.github.arn }
@@ -28,6 +28,7 @@ resource "aws_iam_instance_profile" "app" {
   role = aws_iam_role.ec2.name
 }
 resource "aws_iam_role_policy" "runtime" {
+  name = "${local.name}-runtime"
   role = aws_iam_role.ec2.id
   policy = jsonencode({ Version = "2012-10-17", Statement = [
     { Effect = "Allow", Action = "ecr:GetAuthorizationToken", Resource = "*" },
@@ -38,6 +39,7 @@ resource "aws_iam_role_policy" "runtime" {
   ] })
 }
 resource "aws_iam_role_policy" "github" {
+  name = "${local.name}-github"
   role = aws_iam_role.github.id
   policy = jsonencode({ Version = "2012-10-17", Statement = [
     { Effect = "Allow", Action = "ecr:GetAuthorizationToken", Resource = "*" },

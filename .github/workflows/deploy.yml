@@ -100,11 +100,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if aws ecr describe-images --repository-name stayhub/backend --image-ids "imageTag=$GITHUB_SHA" >/dev/null 2>image-error.log; then
+          if aws ecr describe-images --repository-name jigar-stayhub/backend --image-ids "imageTag=$GITHUB_SHA" >/dev/null 2>image-error.log; then
             echo "Reusing immutable image for this commit"
           elif grep -q ImageNotFoundException image-error.log; then
-            docker build -t "$REGISTRY/stayhub/backend:$GITHUB_SHA" backend
-            docker push "$REGISTRY/stayhub/backend:$GITHUB_SHA"
+            docker build -t "$REGISTRY/jigar-stayhub/backend:$GITHUB_SHA" backend
+            docker push "$REGISTRY/jigar-stayhub/backend:$GITHUB_SHA"
           else
             cat image-error.log
             exit 1

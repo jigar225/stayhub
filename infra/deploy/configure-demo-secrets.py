@@ -4,6 +4,7 @@ import getpass
 import json
 import os
 import subprocess
+import tempfile
 
 config = json.loads(
     subprocess.check_output(
@@ -40,11 +41,20 @@ for role in ["GUEST", "HOST", "ADMIN"]:
 payload = json.dumps(
     {"SecretId": config["app_secret"], "SecretString": json.dumps(values)}
 )
-subprocess.run(
-    base + ["put-secret-value", "--cli-input-json", "file:///dev/stdin"],
-    input=payload,
-    text=True,
-    check=True,
-    stdout=subprocess.DEVNULL,
-)
+# NamedTemporaryFile creates mode 0600 and removes the file on success/failure.
+with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", suffix=".json") as source:
+    source.write(payload)
+    source.flush()
+    result = subprocess.run(
+        base + ["put-secret-value"] + ["--cli-input-json", "file://" + source.name],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode:
+        # CLI diagnostics can include input data; do not echo them.
+        raise SystemExit(
+            "Secret write failed; verify AWS session and permissions. No secret values displayed."
+        )
+
 print("Demo secret fields prepared; existing values preserved. Seeding has NOT run.")

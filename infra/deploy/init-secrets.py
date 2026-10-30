@@ -4,6 +4,7 @@ import json
 import secrets
 import subprocess
 import sys
+import tempfile
 
 profile = "stayhub"
 config = json.loads(
@@ -36,28 +37,36 @@ if "ResourceNotFoundException" not in result.stderr:
     raise SystemExit(
         "Could not check secret; verify permissions/session. No value written."
     )
-# Value is sent through stdin, not shell arguments or files.
+# AWS CLI on macOS may not read /dev/stdin; use a private temporary input file.
 payload = json.dumps(
     {
         "SecretId": config["app_secret"],
         "SecretString": json.dumps({"JWT_SECRET": secrets.token_urlsafe(48)}),
     }
 )
-subprocess.run(
-    [
-        "aws",
-        "secretsmanager",
-        "put-secret-value",
-        "--profile",
-        profile,
-        "--region",
-        "us-east-1",
-        "--cli-input-json",
-        "file:///dev/stdin",
-    ],
-    input=payload,
-    text=True,
-    check=True,
-    stdout=subprocess.DEVNULL,
-)
+# NamedTemporaryFile creates mode 0600 and removes the file on success/failure.
+with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", suffix=".json") as source:
+    source.write(payload)
+    source.flush()
+    result = subprocess.run(
+        [
+            "aws",
+            "secretsmanager",
+            "put-secret-value",
+            "--profile",
+            profile,
+            "--region",
+            "us-east-1",
+        ]
+        + ["--cli-input-json", "file://" + source.name],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode:
+        # CLI diagnostics can include input data; do not echo them.
+        raise SystemExit(
+            "Secret write failed; verify AWS session and permissions. No secret values displayed."
+        )
+
 print("Application JWT secret initialized. No demo accounts were created.")
