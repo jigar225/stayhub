@@ -1,0 +1,25 @@
+# Separate persisted local review environment. Never advances the main app clock.
+# Always use: docker compose -p stayhub-m5-review -f compose.yaml -f compose.m5-review.yaml
+services:
+  api:
+    ports: !override
+      - '127.0.0.1:8010:8000'
+    environment:
+      DEMO_MODE: 'true'
+      TRUSTED_ORIGINS: http://localhost:5183
+      S3_BUCKET: stayhub-m5-review-photos
+      TEST_S3_BUCKET: stayhub-m5-review-photos-test
+      S3_PUBLIC_ENDPOINT_URL: http://localhost:9010
+  storage:
+    ports: !override
+      - '127.0.0.1:9010:9000'
+  frontend:
+    ports: !override
+      - '127.0.0.1:5183:5173'
+  expiry-worker:
+    environment:
+      DEMO_MODE: 'true'
+      TRUSTED_ORIGINS: http://localhost:5183
+      S3_BUCKET: stayhub-m5-review-photos
+      TEST_S3_BUCKET: stayhub-m5-review-photos-test
+      S3_PUBLIC_ENDPOINT_URL: http://localhost:9010

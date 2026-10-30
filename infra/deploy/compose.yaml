@@ -1,0 +1,31 @@
+services:
+  api:
+    image: ${BACKEND_IMAGE:?Set BACKEND_IMAGE}
+    restart: unless-stopped
+    env_file:
+      - path: ${STAYHUB_ROOT:-/opt/stayhub}/runtime.env
+        format: raw
+    command: [uv, run, --frozen, uvicorn, app.main:app, --uds, /run/stayhub/api.sock, --proxy-headers, '--forwarded-allow-ips=*']
+    volumes:
+      - /run/stayhub:/run/stayhub
+    healthcheck:
+      test: [CMD, python, -c, "import socket; s=socket.socket(socket.AF_UNIX); s.settimeout(5); s.connect('/run/stayhub/api.sock'); s.sendall(b'GET /ready HTTP/1.0\r\nHost: localhost\r\n\r\n'); assert b' 200 ' in s.recv(128)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    logging:
+      driver: json-file
+      options: {max-size: 10m, max-file: '3'}
+  worker:
+    image: ${BACKEND_IMAGE:?Set BACKEND_IMAGE}
+    restart: unless-stopped
+    env_file:
+      - path: ${STAYHUB_ROOT:-/opt/stayhub}/runtime.env
+        format: raw
+    command: [uv, run, --frozen, python, -m, app.sweep, --loop, --interval, '60', --batch-size, '100']
+    depends_on:
+      api:
+        condition: service_healthy
+    logging:
+      driver: json-file
+      options: {max-size: 10m, max-file: '3'}

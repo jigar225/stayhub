@@ -1,0 +1,38 @@
+# Private environment files; keep the shareable template.
+.env
+.env.*
+!.env.example
+
+# Local planning, handoffs and generated verification evidence.
+/docs/
+/.handoff/
+/evidence/
+**/evidence/
+**/test-results/
+**/playwright-report/
+
+# Installed dependencies, caches and generated builds.
+**/node_modules/
+**/.venv/
+**/__pycache__/
+*.py[cod]
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+frontend/dist/
+**/.coverage
+**/.coverage.*
+**/coverage/
+**/htmlcov/
+*.tsbuildinfo
+.DS_Store
+
+# Terraform working data and private inputs. Keep .terraform.lock.hcl.
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.tfvars
+*.tfvars.json
+crash.log
+crash.*.log

@@ -1,0 +1,24 @@
+# Retained fresh-volume local proof. Never use this override without its project/env.
+# docker compose --env-file .env.m61.local -p stayhub-m61-cold-20261030 -f compose.yaml -f compose.m61-cold.yaml
+services:
+  api:
+    env_file: !override [.env.m61.local]
+    ports: !override ['127.0.0.1:8020:8000']
+    environment:
+      DEMO_MODE: 'true'
+      TRUSTED_ORIGINS: http://localhost:5193
+      S3_BUCKET: stayhub-m61-cold-photos
+      TEST_S3_BUCKET: stayhub-m61-cold-photos-test
+      S3_PUBLIC_ENDPOINT_URL: http://localhost:9020
+  expiry-worker:
+    env_file: !override [.env.m61.local]
+    environment:
+      DEMO_MODE: 'true'
+      TRUSTED_ORIGINS: http://localhost:5193
+      S3_BUCKET: stayhub-m61-cold-photos
+      TEST_S3_BUCKET: stayhub-m61-cold-photos-test
+      S3_PUBLIC_ENDPOINT_URL: http://localhost:9020
+  storage:
+    ports: !override ['127.0.0.1:9020:9000']
+  frontend:
+    ports: !override ['127.0.0.1:5193:5173']
