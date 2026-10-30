@@ -34,22 +34,30 @@ receiver, packager, probe = (
 
 class HealthcheckTests(unittest.TestCase):
     def test_compose_healthcheck_is_valid_python_and_sends_http(self):
-        config = json.loads(
-            subprocess.check_output(
-                [
-                    "docker",
-                    "compose",
-                    "-f",
-                    str(DEPLOY / "compose.yaml"),
-                    "config",
-                    "--no-env-resolution",
-                    "--format",
-                    "json",
-                ],
-                env=os.environ | {"BACKEND_IMAGE": "example.invalid/backend:test"},
-                text=True,
+        # Compose versions differ in env-file validation with --no-env-resolution.
+        # Supply an isolated dummy file and exercise normal resolution instead.
+        with tempfile.TemporaryDirectory() as root:
+            runtime = Path(root) / "runtime.env"
+            runtime.touch(mode=0o600)
+            config = json.loads(
+                subprocess.check_output(
+                    [
+                        "docker",
+                        "compose",
+                        "-f",
+                        str(DEPLOY / "compose.yaml"),
+                        "config",
+                        "--format",
+                        "json",
+                    ],
+                    env=os.environ
+                    | {
+                        "BACKEND_IMAGE": "example.invalid/backend:test",
+                        "STAYHUB_ROOT": root,
+                    },
+                    text=True,
+                )
             )
-        )
         code = compile(
             config["services"]["api"]["healthcheck"]["test"][-1], "healthcheck", "exec"
         )
