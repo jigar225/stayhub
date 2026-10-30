@@ -20,6 +20,7 @@ export interface DraftFields {
   title: string | null;
   description: string | null;
   amenities: string[] | null;
+  categories?: string[] | null;
   house_rules: string[] | null;
   nightly_minor: number | null;
   cleaning_minor: number | null;

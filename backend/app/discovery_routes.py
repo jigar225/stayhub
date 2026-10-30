@@ -5,6 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, Query
 
 from app import discovery_service
+from app.categories import StayCategory
 from app.discovery_schemas import (
     AvailabilityResponse,
     PublicListingResponse,
@@ -27,9 +28,10 @@ def browse(
     guests: Annotated[int, Query(ge=1, le=30)] = 1,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     cursor: UUID | None = None,
+    category: StayCategory | None = None,
 ) -> PublicListings:
     return discovery_service.browse(
-        db, destination, check_in, check_out, guests, limit, cursor
+        db, destination, check_in, check_out, guests, limit, cursor, category
     )
 
 

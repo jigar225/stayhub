@@ -100,6 +100,34 @@ beforeEach(() => {
   mocks.upload.mockResolvedValue(undefined);
 });
 describe("listing save and recovery", () => {
+  it("preserves legacy categories and serializes explicit tag removal as an empty array", () => {
+    expect(changedFields(toForm(draft), draft)).toEqual({});
+    const tagged = { ...draft, categories: ["cabins", "off-grid"] };
+    const form = toForm(tagged);
+    form.destination = "Sintra";
+    expect(changedFields(form, tagged)).toEqual({ destination: "Sintra" });
+    form.categories = "";
+    expect(changedFields(form, tagged)).toEqual({
+      destination: "Sintra",
+      categories: [],
+    });
+  });
+  it("lets an owner save accurate category selections without changing other fields", async () => {
+    mocks.read.mockResolvedValueOnce({
+      listing: { ...draft, categories: ["cabins"] },
+    });
+    render(wizard());
+    const cabins = await screen.findByRole("checkbox", { name: "Cabins" });
+    expect(cabins).toBeChecked();
+    await userEvent.click(screen.getByRole("checkbox", { name: "Off-grid" }));
+    await userEvent.click(screen.getByRole("button", { name: "Save draft" }));
+    await waitFor(() =>
+      expect(mocks.save).toHaveBeenCalledWith("draft-id", 3, {
+        categories: ["cabins", "off-grid"],
+      }),
+    );
+    expect(screen.getByRole("checkbox", { name: "Off-grid" })).toBeChecked();
+  });
   it("uses integer cents and only changed fields, rejecting lossy money", () => {
     expect(parseMoney("129.05")).toBe(12905);
     expect(parseMoney("0,10")).toBe(10);

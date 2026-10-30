@@ -40,6 +40,7 @@ DRAFT_FIELDS = [
     "baths",
     "title",
     "description",
+    "categories",
     "amenities",
     "house_rules",
     "nightly_minor",

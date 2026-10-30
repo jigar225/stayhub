@@ -4,11 +4,12 @@ from datetime import date, timedelta
 from typing import Any, Literal, cast
 from uuid import UUID
 
-from sqlalchemy import Date, func, select
+from sqlalchemy import Date, func, literal, select
 from sqlalchemy import cast as sql_cast
 from sqlalchemy.orm import Session
 
 from app import business_time, pricing, storage
+from app.categories import StayCategory
 from app.date_rules import invalid_date, read_range, stay_range
 from app.discovery_schemas import (
     AvailabilityResponse,
@@ -78,6 +79,7 @@ def _summary(
         title=cast(str, listing.title),
         destination=cast(str, listing.destination),
         property_type=cast(str, listing.property_type),
+        categories=listing.categories,
         capacity=cast(int, listing.capacity),
         bedrooms=cast(int, listing.bedrooms),
         beds=cast(int, listing.beds),
@@ -101,6 +103,7 @@ def browse(
     guests: int = 1,
     limit: int = 20,
     cursor: UUID | None = None,
+    category: StayCategory | None = None,
 ) -> PublicListings:
     if (check_in is None) != (check_out is None):
         raise invalid_date("Supply both check-in and checkout dates.", "check_out")
@@ -112,6 +115,8 @@ def browse(
             Listing.status == "published",
             Listing.capacity >= guests,
         ]
+        if category is not None:
+            criteria.append(literal(category) == func.any(Listing.categories))
         if destination.strip():
             criteria.append(
                 Listing.destination.icontains(destination.strip(), autoescape=True)

@@ -12,6 +12,7 @@ export const fieldNames: ReadonlyArray<keyof DraftFields> = [
   "title",
   "description",
   "amenities",
+  "categories",
   "house_rules",
   "nightly_minor",
   "cleaning_minor",
@@ -62,7 +63,11 @@ export function changedFields(
       if (value && !/^\d+$/.test(value))
         throw new Error("Guest and room counts must be whole numbers.");
       changes[key] = value ? Number(value) : null;
-    } else if (key === "amenities" || key === "house_rules")
+    } else if (
+      key === "amenities" ||
+      key === "house_rules" ||
+      key === "categories"
+    )
       changes[key] = value
         ? Array.from(
             new Set(

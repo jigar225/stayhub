@@ -24,6 +24,7 @@ export interface PolicyTerms {
   terms: string;
 }
 export interface PublicSummary {
+  categories?: string[];
   id: string;
   title: string;
   destination: string;

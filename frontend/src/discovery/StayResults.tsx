@@ -5,10 +5,13 @@ import { ApiError } from "../api/client";
 import { discoveryApi, type PublicSummary } from "./api";
 import { SearchForm } from "./SearchForm";
 import { searchValues } from "./dates";
+import { STAY_CATEGORIES } from "./categories";
+import { StayIcon } from "./StayIcon";
 import { PublicPhotos } from "./PublicPhotos";
 import { formatEUR } from "../listings/form";
 export function StayResults({ explore = false }: { explore?: boolean }) {
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
+  const category = params.get("category") ?? "";
   const query = params.toString();
   const [data, setData] = useState<{
     query: string;
@@ -20,8 +23,12 @@ export function StayResults({ explore = false }: { explore?: boolean }) {
     message: string;
   } | null>(null);
   const [attempt, setAttempt] = useState(0);
-  const [moreBusy, setMoreBusy] = useState(false);
-  const [moreError, setMoreError] = useState("");
+  const [moreQuery, setMoreQuery] = useState<string | null>(null);
+  const moreBusy = moreQuery === query;
+  const [moreError, setMoreError] = useState<{
+    query: string;
+    message: string;
+  } | null>(null);
   useEffect(() => {
     let active = true;
     const controller = new AbortController();
@@ -54,8 +61,8 @@ export function StayResults({ explore = false }: { explore?: boolean }) {
   const error = failure?.query === query ? failure.message : null;
   async function more() {
     if (!current?.cursor) return;
-    setMoreBusy(true);
-    setMoreError("");
+    setMoreQuery(query);
+    setMoreError(null);
     try {
       const next = new URLSearchParams(query);
       next.set("cursor", current.cursor);
@@ -75,27 +82,56 @@ export function StayResults({ explore = false }: { explore?: boolean }) {
           : previous,
       );
     } catch (e) {
-      setMoreError(
-        e instanceof Error ? e.message : "Could not load more stays.",
-      );
+      setMoreError({
+        query,
+        message: e instanceof Error ? e.message : "Could not load more stays.",
+      });
     } finally {
-      setMoreBusy(false);
+      setMoreQuery((previous) => (previous === query ? null : previous));
     }
   }
   const values = searchValues(params);
   return (
-    <main className="page-container discovery-page">
-      <div className="page-heading">
-        <h1>
-          {explore ? "Find a place to stay" : "Stays for your next chapter"}
-        </h1>
-        <p>
-          {explore
-            ? "Thoughtful places. Room to feel at home."
-            : "Explore places that fit your plans."}
-        </p>
+    <main
+      className={`page-container discovery-page ${explore ? "explore-page" : ""}`}
+    >
+      <div className={explore ? "explore-intro" : undefined}>
+        <div className="page-heading">
+          <h1>
+            {explore ? "Find a place to stay" : "Stays for your next chapter"}
+          </h1>
+          <p>
+            {explore
+              ? "Thoughtful places. Room to feel at home."
+              : "Explore places that fit your plans."}
+          </p>
+        </div>
+        <SearchForm
+          key={query}
+          initial={values}
+          joined={explore}
+          category={category}
+        />
       </div>
-      <SearchForm key={query} initial={values} />
+      <nav className="stay-categories" aria-label="Stay categories">
+        {STAY_CATEGORIES.map(({ value, label }) => (
+          <button
+            key={value}
+            type="button"
+            aria-pressed={category === value}
+            onClick={() => {
+              const next = new URLSearchParams(params);
+              next.delete("cursor");
+              if (value) next.set("category", value);
+              else next.delete("category");
+              setParams(next);
+            }}
+          >
+            <StayIcon name={value} />
+            <span>{label}</span>
+          </button>
+        ))}
+      </nav>
       {error ? (
         <ErrorState message={error} retry={() => setAttempt(attempt + 1)} />
       ) : !current ? (
@@ -125,7 +161,7 @@ export function StayResults({ explore = false }: { explore?: boolean }) {
             <p className="muted">
               {values.check_in && values.check_out
                 ? "Stay totals include cleaning and the StayHub service fee."
-                : "Choose dates to see the full stay price."}
+                : `${current.items.length} ${current.items.length === 1 ? "stay" : "stays"}${current.cursor ? " loaded" : " available"} · Choose dates for the full stay price.`}
             </p>
           </div>
           <div className={explore ? "public-stay-grid" : "public-stay-results"}>
@@ -143,14 +179,11 @@ export function StayResults({ explore = false }: { explore?: boolean }) {
                   />
                 </div>
                 <div className="public-stay-content">
-                  <div className="stay-card-location">
-                    <span>{listing.destination}</span>
-                    <span className="new-label">New</span>
-                  </div>
                   <Link to={`/stays/${listing.id}${query ? `?${query}` : ""}`}>
                     <h2>{listing.title}</h2>
                   </Link>
                   <p className="muted">
+                    {listing.destination} ·{" "}
                     {listing.property_type === "room"
                       ? "Private room"
                       : `Entire ${listing.property_type}`}{" "}
@@ -179,8 +212,8 @@ export function StayResults({ explore = false }: { explore?: boolean }) {
               </article>
             ))}
           </div>
-          {moreError && (
-            <ErrorState message={moreError} retry={() => void more()} />
+          {moreError?.query === query && (
+            <ErrorState message={moreError.message} retry={() => void more()} />
           )}{" "}
           {current.cursor && (
             <Button

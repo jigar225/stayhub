@@ -2637,3 +2637,184 @@ textarea {
     padding: 20px;
   }
 }
+
+/* M7: full-page screen 01 composition, scoped to the guest homepage. */
+.stay-categories {
+  display: flex;
+  gap: 28px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 12px;
+  scrollbar-width: thin;
+}
+.stay-categories button {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 58px;
+  padding: 4px 0 10px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+}
+.stay-categories button[aria-pressed="true"] {
+  color: var(--brand);
+  border-bottom-color: var(--brand);
+}
+.stay-categories button:focus-visible {
+  outline-offset: -3px;
+}
+.explore-page {
+  padding-top: 16px;
+}
+.explore-intro {
+  display: grid;
+  grid-template-columns: 480px minmax(0, 1fr);
+  gap: 27px;
+  align-items: end;
+  margin-bottom: 6px;
+  min-height: 98px;
+}
+.explore-page .page-heading {
+  align-self: start;
+  margin: 0;
+}
+.explore-page h1 {
+  font-size: 36px;
+}
+.explore-page .page-heading p {
+  max-width: 470px;
+}
+.stay-search.joined {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(92px, 1fr) 56px;
+  padding: 0;
+  gap: 0;
+  margin: 0;
+  border-radius: 12px;
+  min-height: 64px;
+  align-items: stretch;
+}
+.joined .search-field {
+  padding: 12px 20px;
+  gap: 0;
+  border-right: 1px solid var(--border);
+}
+.joined .search-field label {
+  text-transform: uppercase;
+  font-weight: 500;
+  line-height: 16px;
+}
+.joined .search-field input {
+  border: 0;
+  padding: 0;
+  height: 22px;
+  width: 100%;
+  border-radius: 0;
+  background: transparent;
+  color: #111827;
+}
+.joined .search-field input[type="date"] {
+  font-size: 13px;
+}
+.joined > .button {
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  margin: 7px 8px 7px 0;
+  align-self: start;
+  grid-column: auto;
+}
+.joined .clock-feedback {
+  grid-column: 1/-1;
+}
+.explore-page .results-heading {
+  display: block;
+  margin-bottom: 14px;
+}
+.explore-page .results-heading > p {
+  font-size: 14px;
+  margin-top: 2px;
+}
+.explore-page .public-stay-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 28px 24px;
+}
+.explore-page .public-cover {
+  height: 160px;
+}
+.explore-page .public-stay-content {
+  padding-top: 8px;
+}
+.explore-page .public-stay-content h2 {
+  margin: 0 0 20px;
+}
+.explore-page .stay-card-price {
+  margin-top: 0;
+}
+.explore-page .demo-label {
+  margin: 4px 0 !important;
+}
+@media (max-width: 1250px) {
+  .explore-intro {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  .explore-page .public-stay-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 760px) {
+  .explore-page h1 {
+    font-size: 28px;
+  }
+  .explore-intro {
+    gap: 20px;
+    margin-bottom: 16px;
+  }
+  .stay-search.joined {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 8px;
+  }
+  .joined .search-field {
+    padding: 8px;
+    border: 0;
+  }
+  .joined .search-destination {
+    grid-column: 1/-1;
+    border-bottom: 1px solid var(--border);
+  }
+  .joined .search-field input[type="date"] {
+    padding: 0;
+  }
+  .joined > .button {
+    width: 100%;
+    margin: 4px 0 0;
+    align-self: center;
+  }
+  .stay-categories {
+    gap: 24px;
+  }
+  .explore-page .public-stay-grid {
+    grid-template-columns: 1fr;
+  }
+  .explore-page .public-cover {
+    height: 200px;
+  }
+  .explore-page .public-stay-content h2 {
+    margin-bottom: 8px;
+  }
+}
+
+/* Align the Stays tab with the reference header. */
+.guest-header {
+  gap: 36px;
+}
+.guest-header .stays-nav {
+  height: 24px;
+  padding: 0;
+}

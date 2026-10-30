@@ -19,7 +19,7 @@ from sqlalchemy import (
     func,
     text,
 )
-from sqlalchemy.dialects.postgresql import ExcludeConstraint
+from sqlalchemy.dialects.postgresql import ARRAY, ExcludeConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -124,6 +124,9 @@ class Listing(Base):
     baths: Mapped[int | None] = mapped_column(Integer)
     title: Mapped[str | None] = mapped_column(String(100))
     description: Mapped[str | None] = mapped_column(String(5000))
+    categories: Mapped[list[str]] = mapped_column(
+        ARRAY(String(20)), default=list, server_default=text("'{}'"), nullable=False
+    )
     amenities: Mapped[list[str] | None] = mapped_column(JSON)
     house_rules: Mapped[list[str] | None] = mapped_column(JSON)
     nightly_minor: Mapped[int | None] = mapped_column(Integer)

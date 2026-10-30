@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router";
 import { useBusinessTime } from "../api/businessTime";
+import { StayIcon } from "./StayIcon";
 import { Button } from "../components/ui";
 import {
   earliestCheckIn,
@@ -14,6 +15,8 @@ import {
 export function SearchForm({
   initial,
   compact = false,
+  joined = false,
+  category = "",
   onSubmit,
   busy = false,
   requireDates = false,
@@ -22,6 +25,8 @@ export function SearchForm({
 }: {
   initial: SearchValues;
   compact?: boolean;
+  joined?: boolean;
+  category?: string;
   onSubmit?: (values: SearchValues) => void;
   busy?: boolean;
   requireDates?: boolean;
@@ -62,11 +67,15 @@ export function SearchForm({
       return;
     }
     if (onSubmit) onSubmit(values);
-    else navigate(`/stays?${searchQuery(values)}`);
+    else {
+      const query = new URLSearchParams(searchQuery(values));
+      if (category) query.set("category", category);
+      navigate(`/stays?${query}`);
+    }
   }
   return (
     <form
-      className={`stay-search ${compact ? "compact" : ""}`}
+      className={`stay-search ${compact ? "compact" : ""} ${joined ? "joined" : ""}`}
       onSubmit={submit}
       noValidate
     >
@@ -92,7 +101,7 @@ export function SearchForm({
           },
           { key: "check_in", label: "Check in", type: "date" },
           { key: "check_out", label: "Check out", type: "date" },
-          { key: "guests", label: "Guests", type: "number" },
+          { key: "guests", label: joined ? "Who" : "Guests", type: "number" },
         ] as const
       ).map((field) => (
         <div className={`search-field search-${field.key}`} key={field.key}>
@@ -166,8 +175,20 @@ export function SearchForm({
           )}
         </div>
       ))}
-      <Button type="submit" disabled={busy}>
-        {busy ? "Checking…" : compact ? "Check price" : "Search stays"}
+      <Button
+        type="submit"
+        disabled={busy}
+        aria-label={joined ? "Search stays" : undefined}
+      >
+        {joined ? (
+          <StayIcon name="search" />
+        ) : busy ? (
+          "Checking…"
+        ) : compact ? (
+          "Check price"
+        ) : (
+          "Search stays"
+        )}
       </Button>
     </form>
   );

@@ -5,6 +5,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, field_validator
 
+from app.categories import StayCategory
 from app.schemas import StrictModel
 
 ShortText = Annotated[str, Field(min_length=1, max_length=60)]
@@ -22,6 +23,7 @@ class DraftFields(StrictModel):
     baths: StrictInt | None = Field(default=None, ge=1, le=20)
     title: str | None = Field(default=None, min_length=1, max_length=100)
     description: str | None = Field(default=None, min_length=1, max_length=5000)
+    categories: list[StayCategory] = Field(default_factory=list, max_length=9)
     amenities: list[ShortText] | None = Field(default=None, max_length=30)
     house_rules: list[RuleText] | None = Field(default=None, max_length=20)
     nightly_minor: StrictInt | None = Field(default=None, ge=100, le=10000000)
@@ -72,7 +74,7 @@ class DraftFields(StrictModel):
             ]
         return value
 
-    @field_validator("amenities", "house_rules")
+    @field_validator("amenities", "house_rules", "categories")
     @classmethod
     def unique_entries(cls, value: list[str] | None) -> list[str] | None:
         if value is not None and len(set(value)) != len(value):

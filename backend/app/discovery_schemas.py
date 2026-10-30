@@ -4,6 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, StrictInt
 
+from app.categories import StayCategory
 from app.schemas import StrictModel
 
 
@@ -73,6 +74,7 @@ class PublicSummary(BaseModel):
     id: UUID
     title: str
     destination: str
+    categories: list[StayCategory] = Field(default_factory=list)
     property_type: str
     capacity: int
     bedrooms: int

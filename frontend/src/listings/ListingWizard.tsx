@@ -18,6 +18,7 @@ import {
 import { changedFields, toForm, type ListingForm } from "./form";
 import { PhotoManager } from "./PhotoManager";
 import { StatusBadge } from "./ListingCards";
+import { STAY_CATEGORIES } from "../discovery/categories";
 const steps = [
   "The basics",
   "Photos & content",
@@ -372,6 +373,56 @@ export function ListingWizard() {
           {field("bedrooms", "Bedrooms", { type: "number", min: 0, max: 20 })}
           {field("beds", "Beds", { type: "number", min: 1, max: 30 })}
           {field("baths", "Bathrooms", { type: "number", min: 1, max: 20 })}
+          <fieldset
+            className="listing-field full-width"
+            disabled={disabled}
+            aria-describedby="categories-help categories-error"
+          >
+            <legend>Stay categories (optional)</legend>
+            <p id="categories-help" className="field-help">
+              Choose only categories that accurately describe your place. All
+              listings appear under Homes, including places with no categories.
+            </p>
+            <div
+              style={{ display: "flex", flexWrap: "wrap", gap: "12px 20px" }}
+            >
+              {STAY_CATEGORIES.filter((category) => category.value).map(
+                (category) => (
+                  <label
+                    key={category.value}
+                    style={{ display: "flex", alignItems: "center", gap: 8 }}
+                  >
+                    <input
+                      id={`categories-${category.value}`}
+                      type="checkbox"
+                      style={{ width: 18, height: 18 }}
+                      checked={form.categories
+                        .split("\n")
+                        .includes(category.value)}
+                      onChange={(event) => {
+                        const selected = form.categories
+                          .split("\n")
+                          .filter(Boolean);
+                        update(
+                          "categories",
+                          (event.target.checked
+                            ? [...selected, category.value]
+                            : selected.filter(
+                                (value) => value !== category.value,
+                              )
+                          ).join("\n"),
+                        );
+                      }}
+                    />
+                    {category.label}
+                  </label>
+                ),
+              )}
+            </div>
+            <span id="categories-error" className="field-error">
+              {fieldText(errors.categories)}
+            </span>
+          </fieldset>
         </div>
       </>
     );
@@ -598,6 +649,7 @@ export function ListingWizard() {
                           "bedrooms",
                           "beds",
                           "baths",
+                          "categories",
                         ].includes(key)
                           ? 0
                           : [
@@ -610,7 +662,13 @@ export function ListingWizard() {
                             : 2,
                       );
                       setTimeout(
-                        () => document.getElementById(key)?.focus(),
+                        () =>
+                          (key === "categories"
+                            ? document.querySelector<HTMLInputElement>(
+                                'input[id^="categories-"]',
+                              )
+                            : document.getElementById(key)
+                          )?.focus(),
                         0,
                       );
                     }}
