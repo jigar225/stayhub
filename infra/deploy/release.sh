@@ -22,8 +22,14 @@ export BACKEND_IMAGE="$image:$release"
 export STAYHUB_ROOT="$root"
 compose() { docker compose -p stayhub -f deploy/compose.yaml "$@"; }
 compose pull
-previous=$(readlink -f "$root/current" || true)
-old_web=$(readlink -f "$www/current" || true)
+previous=""
+old_web=""
+if [[ -L "$root/current" && -d "$root/current" && -f "$root/current/image.env" && -f "$root/current/deploy/verify-https.py" ]]; then
+  previous=$(readlink -f "$root/current")
+fi
+if [[ -L "$www/current" && -d "$www/current" ]]; then
+  old_web=$(readlink -f "$www/current")
+fi
 backup=$(mktemp "$root/.nginx-backup.XXXXXX")
 cp "$nginx_config" "$backup"
 rollback() {

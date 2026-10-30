@@ -32,6 +32,38 @@ receiver, packager, probe = (
 )
 
 
+class HealthcheckTests(unittest.TestCase):
+    def test_compose_healthcheck_is_valid_python_and_sends_http(self):
+        config = json.loads(
+            subprocess.check_output(
+                [
+                    "docker",
+                    "compose",
+                    "-f",
+                    str(DEPLOY / "compose.yaml"),
+                    "config",
+                    "--no-env-resolution",
+                    "--format",
+                    "json",
+                ],
+                env=os.environ | {"BACKEND_IMAGE": "example.invalid/backend:test"},
+                text=True,
+            )
+        )
+        code = compile(
+            config["services"]["api"]["healthcheck"]["test"][-1], "healthcheck", "exec"
+        )
+        with patch("socket.socket") as factory:
+            factory.return_value.recv.return_value = b"HTTP/1.1 200 OK\r\n"
+            exec(code, {})
+            factory.return_value.sendall.assert_called_once_with(
+                b"GET /ready HTTP/1.0\r\nHost: localhost\r\n\r\n"
+            )
+            factory.return_value.recv.return_value = b"HTTP/1.1 503 Unavailable\r\n"
+            with self.assertRaises(AssertionError):
+                exec(code, {})
+
+
 class ArtifactTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
@@ -350,11 +382,20 @@ exit 0
         self.assertNotIn("Deployed", result.stdout)
 
     def test_first_release_failure_does_not_claim_success(self):
+        # GNU readlink -f succeeds even when the final path component is missing.
+        readlink = self.bin / "readlink"
+        readlink.write_text(
+            "#!/usr/bin/env python3\nimport os,sys\nprint(os.path.realpath(sys.argv[-1]))\n"
+        )
+        readlink.chmod(0o755)
         result = self.release("d" * 40, bad=True)
         self.assertNotEqual(result.returncode, 0)
         self.assertFalse((self.root / "current").exists())
         self.assertEqual(self.nginx.read_text(), "original nginx")
         self.assertIn("down", (self.root / "docker.log").read_text())
+        self.assertIn("First release stopped", result.stdout)
+        self.assertNotIn("RECOVERY FAILED", result.stdout)
+        self.assertFalse((self.www / "current").is_symlink())
 
 
 if __name__ == "__main__":
