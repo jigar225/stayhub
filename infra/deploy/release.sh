@@ -1,7 +1,6 @@
 #!/bin/bash
 set -Eeuo pipefail
 root=${STAYHUB_ROOT:-/opt/stayhub}
-www=${STAYHUB_WWW:-/var/www/stayhub}
 nginx_config=${STAYHUB_NGINX_CONFIG:-/etc/nginx/nginx.conf}
 certbot=${STAYHUB_CERTBOT:-/opt/certbot/bin/certbot}
 # Receiver owns the lock from BEFORE download through successful probe/recovery.
@@ -23,12 +22,8 @@ export STAYHUB_ROOT="$root"
 compose() { docker compose -p stayhub -f deploy/compose.yaml "$@"; }
 compose pull
 previous=""
-old_web=""
 if [[ -L "$root/current" && -d "$root/current" && -f "$root/current/image.env" && -f "$root/current/deploy/verify-https.py" ]]; then
   previous=$(readlink -f "$root/current")
-fi
-if [[ -L "$www/current" && -d "$www/current" ]]; then
-  old_web=$(readlink -f "$www/current")
 fi
 backup=$(mktemp "$root/.nginx-backup.XXXXXX")
 cp "$nginx_config" "$backup"
@@ -43,12 +38,6 @@ rollback() {
     docker compose -p stayhub -f "$previous/deploy/compose.yaml" up -d --wait --wait-timeout 180 || recovery=1
   else
     compose down || recovery=1
-  fi
-  if [[ -n "$old_web" ]]; then
-    ln -sfn "$old_web" "$www/current" || recovery=1
-  else
-    # Only our newly created link, never existing user data.
-    [[ ! -L "$www/current" ]] || unlink "$www/current"
   fi
   cp "$backup" "$nginx_config" || recovery=1
   nginx -t && systemctl reload nginx || recovery=1
@@ -87,8 +76,14 @@ http {
     ssl_certificate_key /etc/letsencrypt/live/stayhub/privkey.pem;
     ssl_protocols TLSv1.2 TLSv1.3;
     client_max_body_size 1m;
-    root $www/current;
     # Uvicorn accepts proxy headers ONLY via this Unix socket; it has no TCP listener.
+    location = /api {
+      proxy_pass http://unix:/run/stayhub/api.sock;
+      proxy_set_header Host \$host;
+      proxy_set_header X-Forwarded-For \$remote_addr;
+      proxy_set_header X-Forwarded-Proto https;
+      proxy_set_header Forwarded "";
+    }
     location /api/ {
       proxy_pass http://unix:/run/stayhub/api.sock;
       proxy_set_header Host \$host;
@@ -103,21 +98,18 @@ http {
       proxy_set_header X-Forwarded-Proto https;
       proxy_set_header Forwarded "";
     }
-    location / { try_files \$uri \$uri/ /index.html; }
-    location = /index.html { add_header Cache-Control 'no-cache'; }
+    location / { return 404; }
   }
+  include /etc/nginx/stayhub/*.conf;
 }
 NGINX
 printf '%s\n' "$BACKEND_IMAGE" > image.env
-# Fresh release ID only: never copy over an active or previous web directory.
-test ! -e "$www/releases/$release"
-install -d -m 755 "$www/releases/$release"
-cp -r frontend/. "$www/releases/$release/"
-chmod -R a+rX "$www/releases/$release"
-ln -sfn "$www/releases/$release" "$www/current"
 cp nginx.conf "$nginx_config"
 nginx -t
 systemctl reload nginx
+if python3 -c 'import json,sys; sys.exit(not json.load(open(sys.argv[1])).get("cdn_origin"))' "$root/config.json"; then
+  python3 deploy/configure-origin.py
+fi
 python3 deploy/verify-https.py "https://$ip"
 ln -sfn "$PWD" "$root/current"
 trap - ERR

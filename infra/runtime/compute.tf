@@ -7,7 +7,7 @@ resource "aws_instance" "app" {
   iam_instance_profile        = aws_iam_instance_profile.app.name
   user_data = join("\n", [
     file("${path.module}/../deploy/bootstrap.sh"),
-    "printf '%s' '${base64encode(file("${path.module}/../deploy/receive.py"))}' | base64 -d > /opt/stayhub/receive.py",
+    "printf '%s' '${base64encode(file("${path.module}/../deploy/receive-bootstrap-v1.py"))}' | base64 -d > /opt/stayhub/receive.py",
     "chmod 700 /opt/stayhub/receive.py"
   ])
   user_data_replace_on_change = true

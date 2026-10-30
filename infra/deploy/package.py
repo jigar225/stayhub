@@ -9,10 +9,10 @@ import tarfile
 from pathlib import Path
 
 
-def package(project, frontend, output):
+def package(project, output):
     assets = project / "demo/assets"
     manifest = json.loads((assets / "manifest.json").read_text())
-    selected = [(frontend, "frontend"), (project / "infra/deploy", "deploy")]
+    selected = [(project / "infra/deploy", "deploy")]
     files = {}
     for directory, prefix in selected:
         for path in directory.rglob("*"):
@@ -20,6 +20,7 @@ def package(project, frontend, output):
                 path.is_file()
                 and "__pycache__" not in path.parts
                 and path.suffix != ".pyc"
+                and path.name != "receive-bootstrap-v1.py"
             ):
                 if path.is_symlink():
                     raise ValueError("No symbolic links in releases")
@@ -42,6 +43,12 @@ def package(project, frontend, output):
         gzip.GzipFile(fileobj=target, mode="wb", mtime=0, filename="") as zipped,
     ):
         with tarfile.open(fileobj=zipped, mode="w") as archive:
+            metadata = json.dumps(
+                {"format": "stayhub-backend", "version": 2}, sort_keys=True
+            ).encode()
+            info = tarfile.TarInfo("release.json")
+            info.size, info.mode, info.mtime = len(metadata), 0o644, 0
+            archive.addfile(info, io.BytesIO(metadata))
             for name, path in sorted(files.items()):
                 data = path.read_bytes()
                 info = tarfile.TarInfo(name)
@@ -52,7 +59,6 @@ def package(project, frontend, output):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--frontend", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
-    print(package(Path(__file__).resolve().parents[2], args.frontend, args.output))
+    print(package(Path(__file__).resolve().parents[2], args.output))

@@ -135,6 +135,32 @@ print(json.dumps(results))
                 second = json.loads(docker("exec", client2, "python", "-c", script))
                 self.assertEqual(second[0][0], 200, second)
                 self.assertNotEqual(second[0][1]["client"], result[0][1]["client"])
+                # Model a trusted CloudFront connection: XFF's rightmost address
+                # is appended by CloudFront, preceding viewer values are untrusted.
+                peer = json.loads(docker("inspect", client2))[0]["NetworkSettings"][
+                    "Networks"
+                ][name]["IPAddress"]
+                conf.write_text(
+                    conf.read_text().replace(
+                        "listen 8080;",
+                        "listen 8080; set_real_ip_from "
+                        + peer
+                        + "; real_ip_header X-Forwarded-For; real_ip_recursive off;",
+                    )
+                )
+                docker("exec", proxy, "nginx", "-s", "reload")
+                import time
+
+                time.sleep(1)
+                trusted = script.replace(
+                    "'X-Forwarded-For':spoof",
+                    "'X-Forwarded-For':spoof+', 198.51.100.27'",
+                )
+                forwarded = json.loads(docker("exec", client2, "python", "-c", trusted))
+                self.assertEqual([r[0] for r in forwarded], [200, 200, 429], forwarded)
+                self.assertEqual(forwarded[0][1]["client"], "198.51.100.27")
+                self.assertEqual(forwarded[1][1]["client"], "198.51.100.27")
+
         finally:
             for container in containers:
                 subprocess.run(

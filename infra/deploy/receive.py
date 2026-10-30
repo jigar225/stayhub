@@ -1,4 +1,4 @@
-"""Host-installed release receiver. Lock precedes all network/staging operations."""
+"""Receiver v2: backend-only v2 and legacy v1; lock precedes network/staging."""
 
 import fcntl
 import hashlib
@@ -12,6 +12,8 @@ import tarfile
 import tempfile
 from pathlib import Path, PurePosixPath
 
+RECEIVER_VERSION = 2
+
 
 def extract_verified(archive, destination):
     with tarfile.open(archive, "r:gz") as source:
@@ -23,7 +25,10 @@ def extract_verified(archive, destination):
                 path.is_absolute()
                 or ".." in path.parts
                 or not path.parts
-                or path.parts[0] not in {"frontend", "deploy", "demo"}
+                or (
+                    path.parts[0] not in {"frontend", "deploy", "demo"}
+                    and member.name != "release.json"
+                )
                 or not (member.isdir() or member.isfile())
                 or member.name in seen
             ):
@@ -42,8 +47,18 @@ def extract_verified(archive, destination):
                     target.open("xb") as outgoing,
                 ):
                     shutil.copyfileobj(incoming, outgoing)
+        metadata = destination / "release.json"
+        if metadata.exists():
+            if json.loads(metadata.read_text()) != {
+                "format": "stayhub-backend",
+                "version": 2,
+            }:
+                raise ValueError("Unsupported release format")
+            if any(name == "frontend" or name.startswith("frontend/") for name in seen):
+                raise ValueError("Backend release contains frontend files")
+        elif not (destination / "frontend/index.html").is_file():
+            raise ValueError("Incomplete legacy release")
         for required in [
-            "frontend/index.html",
             "deploy/release.sh",
             "deploy/compose.yaml",
             "deploy/seed.sh",

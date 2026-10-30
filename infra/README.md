@@ -1,10 +1,10 @@
 # StayHub sandbox deployment
 
-Target: account **762079300828**, **us-east-1**, CLI profile **stayhub**. This replaces the old-account infrastructure source by user request; it does not delete old AWS resources. No agent-run AWS apply. Existing sandbox resources with matching names must be imported rather than overwritten/recreated in another state.
+Target: account **762079300828**, **us-east-1**, CLI profile **stayhub**. This replaces the old-account infrastructure source by user request; it does not delete old AWS resources. Additive provisioning for the S3/CloudFront milestone is explicitly authorized; review saved plans before applying. Existing sandbox resources with matching names must be imported rather than overwritten/recreated in another state.
 
 ## Architecture
 
-One Amazon Linux 2023 x86 EC2 (`t3.small`, 2 GiB) with encrypted 20 GiB gp3 disk and Elastic IP. Nginx serves React and proxies `/api/` to the Unix-socket-only FastAPI container. Worker uses the same backend image. No SSH ingress, ALB, NAT, CloudFront, local Postgres or RustFS in deployment. Single-AZ RDS PostgreSQL 18 (`db.t4g.micro`, 20 GiB) is private; only the EC2 security group can reach it. Private S3 stores photos and release artifacts. GitHub OIDC can deploy only main from `jigar225/stayhub` with the previously supplied immutable owner/repository IDs. Update this trust subject if the repository is moved or workflow uses a GitHub environment.
+One Amazon Linux 2023 x86 EC2 (`t3.small`, 2 GiB) with encrypted 20 GiB gp3 disk and Elastic IP. Nginx serves React and proxies `/api/` to the Unix-socket-only FastAPI container. Worker uses the same backend image. No SSH ingress, ALB, NAT, local Postgres or RustFS in deployment. CloudFront now serves the frontend from private S3 and proxies API requests to a separate trusted HTTPS EC2 hostname. Single-AZ RDS PostgreSQL 18 (`db.t4g.micro`, 20 GiB) is private; only the EC2 security group can reach it. Private S3 stores photos and release artifacts. GitHub OIDC can deploy only main from `jigar225/stayhub` with the previously supplied immutable owner/repository IDs. Update this trust subject if the repository is moved or workflow uses a GitHub environment.
 
 Terraform provisions network, RDS, ECR, S3, IAM/OIDC, EC2 bootstrap, SSM document and deployment outputs. GitHub publishes releases; no credentials are sent from GitHub to EC2. EC2 obtains temporary IAM credentials through IMDSv2; Docker hop limit is 2. Backend IAM mode is explicitly enabled in deployment only. AWS service endpoints remain publicly reachable for instance egress; the database subnets have no internet route.
 
@@ -69,7 +69,7 @@ Budget: $40/month testing target, **not a guaranteed maximum**. Pricing estimate
 
 Deletion protection defaults true. To intentionally tear down: review backups, set deletion_protection=false and apply, then review destroy plan. RDS requires a final snapshot, and populated buckets/ECR refuse deletion. Existing `${name}-final` snapshot identifiers may conflict on repeated teardown; choose a new identifier in source when needed. Never force-delete data to make destroy pass. State bucket survives runtime teardown. Release files/secrets/certificates on the instance are reconstructed; photos/database are separate persistent resources.
 
-## Verification status
+## Historical verification status (before CDN milestone)
 
 Source preparation only. Local format/schema/shell/Python checks are recorded by the agent separately. No remote plan/apply, live certificate, RDS migration, browser auth/photo flow, worker or rollback verification is claimed until user-run deployment. Do not treat successful Terraform apply as application acceptance.
 
@@ -97,7 +97,7 @@ The workflow ID/file must already be committed on main. For a manual artifact de
 ```sh
 npm --prefix frontend run build
 release=$(git rev-parse HEAD)
-digest=$(python3 infra/deploy/package.py --frontend frontend/dist --output /tmp/stayhub-release.tar.gz)
+digest=$(python3 infra/deploy/package.py --output /tmp/stayhub-release.tar.gz)
 # Obtain these nonsecret values from terraform output github_variables:
 bucket=jigar-stayhub-sandbox-762079300828-releases
 instance_id=REPLACE_WITH_EC2_INSTANCE_ID
@@ -145,3 +145,250 @@ New runtime resources use `jigar-stayhub-sandbox` names and `Owner=jigar` tags. 
 State storage now targets `jigar-stayhub-762079300828-us-east-1-state`. Before this change, the old bucket was checked with ListObjectVersions: no versions or delete markers existed. The user is deleting that empty old bucket. Finish deletion before the next bootstrap plan: otherwise `prevent_destroy` correctly blocks replacement. Keep bootstrap local state; refresh during plan discovers the deleted bucket. Apply the newly reviewed bootstrap plan, then run `terraform -chdir=infra/runtime init -reconfigure` against the new empty backend. No runtime state migration is needed for this verified empty setup. Never reuse old saved plans.
 
 Local paths, AWS profile, database name, photo object prefixes and GitHub repository identity remain unchanged.
+
+
+## S3/CloudFront frontend milestone
+
+The public frontend uses the default CloudFront HTTPS domain and a private,
+versioned, encrypted S3 bucket. OAC permits reads only from this distribution;
+public access is blocked and plaintext S3 requests are denied. `/api` and
+`/api/*` use the existing EC2 Unix-socket API through verified origin HTTPS.
+The origin hostname is derived from the Terraform EIP:
+`jigar-stayhub-api.<hyphenated-IP>.sslip.io`. No EC2 user-data changes are
+required. The IP website, IP certificate, worker, RDS and photo/release buckets
+remain in place. No new compute, Lambda, load balancer or purchased domain.
+
+CloudFront uses `Managed-CachingDisabled` for the API and
+`Managed-AllViewerExceptHostHeader` to retain Authorization, cookies, Origin,
+CSRF/idempotency headers and query strings while using origin Host/SNI.
+Error caching minimum TTL is zero; no error status/body is rewritten.
+The frontend cache policy has minimum/default TTL zero and respects immutable
+asset headers. The viewer-request function rewrites only known app navigation
+routes. Missing assets, unknown paths and API paths are never converted into
+`index.html`; S3 may return 403 for missing objects because public ListBucket
+is intentionally unavailable.
+
+`configure-origin.py` adds a separate API-only Nginx vhost and certificate,
+with ACME on port 80 and HTTPS redirects elsewhere. Its include stays last so
+the existing IP host remains the default for non-SNI connections. Certbot's
+existing twice-daily timer renews both certificates and reloads Nginx. The
+script is safe to repeat under `/opt/stayhub/deploy.lock`. It refreshes trusted
+CloudFront origin-facing ranges from the official AWS IP range feed, and
+installs a daily locked refresh timer. Only those connection peers may supply
+CloudFront's appended (rightmost) XFF viewer address; other public clients'
+forwarding headers are overwritten. Failed range download leaves the prior
+configuration intact. Monitor both timers; a stale list can group requests
+under an edge address and reduce rate-limit availability.
+
+`release_config` now contains the exact CDN origin. `upload-config.py` sends
+it to the host; `runtime-env.py` retains the IP origin, adds the CDN origin,
+and keeps Secure cookies. Photo CORS likewise retains the IP origin and adds
+only the exact CDN origin. API requests remain relative `/api/v1/...`.
+The hostname itself is deliberately not added as a trusted browser origin.
+
+### Deployment and frontend rollback
+
+The workflow retains all existing checks, backend health probes and recovery.
+Only after the SSM backend deployment reports success does it publish the
+frontend with `publish-frontend.py`. Hashed assets upload before index promotion,
+receive one-year immutable caching and are never deleted automatically.
+`index.html` must revalidate. Each publish stores a snapshot plus SHA256 manifest
+under `releases/COMMIT/INDEX_SHA256/`, then invalidates and waits for CloudFront.
+A failed invalidation can leave a promoted release temporarily stale; inspect
+its status and retry invalidation or restore a snapshot. Do not rerun backend
+migrations merely to retry frontend publication.
+
+Configure all six repository variables from `terraform output -json
+github_variables`: the four existing values plus `FRONTEND_BUCKET` and
+`CLOUDFRONT_DISTRIBUTION_ID`. OIDC trust is unchanged. IAM additions are limited
+to GetObject/PutObject on the frontend bucket and invalidation creation/status
+on the one distribution. No asset deletion or broad CloudFront access.
+
+To roll back frontend content, use a snapshot URL from successful publish output
+or the recorded milestone evidence, and the bucket/distribution Terraform outputs:
+
+```sh
+AWS_PROFILE=stayhub python3 infra/deploy/publish-frontend.py \
+  --rollback-snapshot s3://BUCKET/releases/COMMIT/INDEX_SHA256/ \
+  --bucket BUCKET --distribution DISTRIBUTION_ID
+```
+
+This downloads and verifies every file in the snapshot before publication,
+uploads assets first, promotes the old index and waits for invalidation.
+It does not roll back backend code or reverse migrations. Select a frontend
+compatible with the running backend. S3 versioning is an additional recovery
+layer. Keep previous assets/snapshots until a deliberate retention review.
+The old IP URL remains available as a separate access path.
+
+The free sslip.io hostname is an external DNS dependency, not an owned domain.
+Availability, DNS/CAA changes and CA rate limits can interrupt issuance/renewal;
+there is no insecure HTTP or certificate-verification bypass. If the EIP changes,
+verify DNS and issue a certificate for the new hostname before applying dependent
+origin changes. Monitor certificate expiry and both systemd timers. Official
+references: [CloudFront origin headers](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/using-managed-origin-request-policies.html),
+[error caching](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/custom-error-pages-expiration.html),
+[client IP handling](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/RequestAndResponseBehaviorCustomOrigin.html),
+[Terraform distribution resource](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudfront_distribution),
+and [Certbot webroot/renewal](https://eff-certbot.readthedocs.io/en/stable/using.html).
+
+Current applied resources, checks and limitations are recorded in
+`infra/CDN-MILESTONE.md`. A local infrastructure apply does not establish that
+the changed GitHub workflow ran: that run remains pending the user's commit/push.
+
+
+## Backend-only archives: pending reviewed cleanup
+
+This section supersedes earlier descriptions of bundling React into EC2 releases.
+The prepared flow is checks/build → immutable backend image → backend-only SSM
+release → API health → S3 frontend publication. Frontend publication still uploads
+assets before index and retains previous hashed assets. The explicit post-backend
+probe uses the current CDN URL in the workflow; update that URL if the distribution
+is intentionally replaced. No workflow has been dispatched or live host updated
+for this cleanup. Stop for review before commit/push.
+
+New EC2 archives contain `release.json` (`stayhub-backend`, version 2), deployment
+files and required licensed demo assets, with no `frontend/` tree. Receiver v2
+accepts this format and validates legacy unversioned archives with
+`frontend/index.html`. The digest, safe member extraction, licensed-asset checks,
+lock-before-download and immutable-release retry behavior remain. Active identical
+legacy retries still probe without extracting or changing files; inactive existing
+release IDs still require a new commit. Keeping legacy validation does not authorize
+redeploying an old script that publishes frontend content onto EC2.
+
+The new backend release script no longer reads/writes/promotes `/var/www/stayhub`
+or depends on that tree during recovery. It retains the TLS IP/API proxy, the
+separate HTTPS origin include, certificate handling and backend health/recovery.
+After a future successful backend deployment, non-API IP routes return 404 rather
+than serving React. No IP-to-CDN redirect is part of this narrowed cleanup. Existing
+web archives and symlinks remain on disk. Migrations retain their existing behavior
+and are never reversed by backend recovery. The actual post-push GitHub run remains
+pending; the live site has not been changed by this cleanup.
+
+### Required operator step BEFORE the first backend-only deployment
+
+The currently installed receiver expects `frontend/index.html`. Run the following
+from the reviewed checkout **before pushing/dispatching a backend-only release**.
+These commands only replace `/opt/stayhub/receive.py` under the existing deployment
+lock, after checking the source checksum and Python syntax. They do not run a
+release, restart services, migrate data or modify immutable release directories.
+A same-checksum repeat is a no-op. This is an operator procedure, not a new
+migration service or backup system. No SSM command below was executed by the agent.
+
+1. Prepare SSM parameters locally from the reviewed receiver:
+
+```sh
+cd /Users/macair/Stayhub
+python3 - <<'PY_RECEIVER'
+import base64
+import hashlib
+import json
+from pathlib import Path
+
+source = Path("infra/deploy/receive.py").read_bytes()
+compile(source, "receive.py", "exec")
+digest = hashlib.sha256(source).hexdigest()
+encoded = base64.b64encode(source).decode("ascii")
+script = """import base64, fcntl, hashlib, os, tempfile
+from pathlib import Path
+root = Path('/opt/stayhub')
+source = base64.b64decode('ENCODED', validate=True)
+expected = 'DIGEST'
+assert hashlib.sha256(source).hexdigest() == expected
+compile(source, 'receive.py', 'exec')
+with (root / 'deploy.lock').open('a') as lock:
+    fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    target = root / 'receive.py'
+    if hashlib.sha256(target.read_bytes()).hexdigest() == expected:
+        print('Receiver already current:', expected)
+    else:
+        fd, candidate = tempfile.mkstemp(prefix='.receive-', suffix='.py', dir=root)
+        with os.fdopen(fd, 'wb') as stream:
+            stream.write(source)
+            stream.flush()
+            os.fsync(stream.fileno())
+            os.fchmod(stream.fileno(), 0o700)
+        os.replace(candidate, target)
+        assert hashlib.sha256(target.read_bytes()).hexdigest() == expected
+        print('Receiver updated:', expected)
+""".replace("ENCODED", encoded).replace("DIGEST", digest)
+parameters = {"commands": ["set -eu\npython3 - <<'PY_REMOTE'\n" + script + "PY_REMOTE\n"]}
+Path("/tmp/stayhub-receiver-parameters.json").write_text(json.dumps(parameters))
+print("Expected receiver SHA256:", digest)
+PY_RECEIVER
+```
+
+2. Verify the account, send that exact update, and inspect completion:
+
+```sh
+set -euo pipefail
+test "$(aws sts get-caller-identity --profile stayhub --region us-east-1 --query Account --output text)" = 762079300828
+command_id=$(aws ssm send-command \
+  --profile stayhub --region us-east-1 \
+  --instance-ids i-06cf083f7d5bd377d \
+  --document-name AWS-RunShellScript \
+  --parameters file:///tmp/stayhub-receiver-parameters.json \
+  --query Command.CommandId --output text)
+printf 'Receiver update command: %s\n' "$command_id"
+aws ssm wait command-executed \
+  --profile stayhub --region us-east-1 \
+  --command-id "$command_id" --instance-id i-06cf083f7d5bd377d
+aws ssm get-command-invocation \
+  --profile stayhub --region us-east-1 \
+  --command-id "$command_id" --instance-id i-06cf083f7d5bd377d \
+  --query '{Status:Status,Code:ResponseCode,Output:StandardOutputContent,Error:StandardErrorContent}'
+```
+
+Require `Status=Success`, `Code=0`, and the expected SHA256 in output. If waiting
+fails or times out, inspect that command with `get-command-invocation` before any
+retry or deployment. An active deployment causes the nonblocking lock to reject
+the update; wait for it to finish, then repeat this same procedure. Do not delete
+the lock or run the receiver update concurrently with a deployment. Failed
+pre-replacement checks leave the installed receiver intact. No old web/release
+files need deletion. Terraform/user-data changes are outside this cleanup; any
+pre-existing Terraform modifications require separate review, not an apply here.
+
+3. After reviewing the code and confirming the receiver update, selectively
+commit/push the intended files and inspect the first real workflow run. Do not
+include the unrelated M7 changes without their own review. A failed backend or
+API-health step prevents the S3 publisher from running; do not rerun backend
+migrations solely to retry a frontend publication. Existing frontend snapshot
+rollback instructions above remain unchanged.
+
+Files changed for this narrow cleanup: `.github/workflows/deploy.yml`,
+`infra/deploy/package.py`, `infra/deploy/receive.py`, `infra/deploy/release.sh`,
+`infra/tests/test_deployment.py`, and this README. Pre-existing changes in other
+infrastructure and M7 files were retained, not modified by this cleanup.
+
+
+### Focused cleanup verification results
+
+All final commands below exited 0:
+
+```sh
+backend/.venv/bin/python infra/tests/test_deployment.py
+# 17 tests: backend-only contents, legacy validation, invalid format,
+# safe extraction, digest rejection, locking/retries, TLS probes, recovery,
+# and no new or modified EC2 frontend copy/symlink.
+backend/.venv/bin/python infra/tests/test_frontend_delivery.py
+# 5 existing frontend-publication/routing checks.
+backend/.venv/bin/ruff check --config backend/pyproject.toml infra/deploy/package.py infra/deploy/receive.py infra/tests/test_deployment.py
+bash -n infra/deploy/release.sh
+python3 -m py_compile infra/deploy/package.py infra/deploy/receive.py infra/tests/test_deployment.py
+/tmp/stayhub-check-tools/actionlint -shellcheck= -pyflakes= .github/workflows/deploy.yml
+git diff --check
+```
+
+Workflow YAML parsing, all workflow shell steps (`bash -n`), explicit
+backend → API health → frontend ordering and failure gating were also checked
+locally. Actionlint v1.7.12 ran with optional external ShellCheck/Pyflakes
+integration disabled; Python and shell syntax checks ran separately. The manual
+SSM preparation block was executed locally, and its remote Python was checked
+for Python 3.9 syntax and tested only against temporary files for lock exclusion,
+checksum installation and no-op repeat behavior. No SSM or live update ran.
+
+The initial sandbox test attempt could not bind the loopback TLS server. The
+final isolated test run used authorized local socket access. One new macOS path
+assertion was corrected to compare resolved paths; the final 17-test suite
+passed. The unchanged application/M7 files matched their recorded hashes.
+Nothing was committed, pushed, dispatched or deployed. Actual GitHub execution
+and the installed-receiver update remain pending operator action.

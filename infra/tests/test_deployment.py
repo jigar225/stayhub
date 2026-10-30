@@ -80,7 +80,7 @@ class ArtifactTests(unittest.TestCase):
         self.frontend.mkdir()
         (self.frontend / "index.html").write_text("test SPA")
         self.archive = self.root / "release.tar.gz"
-        self.digest = packager.package(PROJECT, self.frontend, self.archive)
+        self.digest = packager.package(PROJECT, self.archive)
         self.release = "a" * 40
 
     def tearDown(self):
@@ -88,13 +88,69 @@ class ArtifactTests(unittest.TestCase):
 
     def test_deterministic_assets_and_license_manifest(self):
         second = self.root / "second.tar.gz"
-        self.assertEqual(self.digest, packager.package(PROJECT, self.frontend, second))
+        self.assertEqual(self.digest, packager.package(PROJECT, second))
         output = self.root / "out"
         output.mkdir()
         receiver.extract_verified(self.archive, output)
         manifest = json.loads((output / "demo/assets/manifest.json").read_text())
         self.assertEqual(len(manifest["assets"]), 5)
         self.assertTrue(all(a["license_url"] for a in manifest["assets"]))
+
+    def rewrite_archive(self, name, changes):
+        result = self.root / name
+        with (
+            tarfile.open(self.archive) as source,
+            tarfile.open(result, "w:gz") as target,
+        ):
+            files = {m.name: source.extractfile(m).read() for m in source if m.isfile()}
+            for path, content in changes.items():
+                if content is None:
+                    files.pop(path, None)
+                else:
+                    files[path] = content
+            for path, content in files.items():
+                info = tarfile.TarInfo(path)
+                info.size = len(content)
+                target.addfile(info, io.BytesIO(content))
+        return result
+
+    def test_backend_archive_contains_no_frontend(self):
+        with tarfile.open(self.archive) as source:
+            names = source.getnames()
+            self.assertFalse(
+                any(n == "frontend" or n.startswith("frontend/") for n in names)
+            )
+            self.assertEqual(
+                json.load(source.extractfile("release.json")),
+                {"format": "stayhub-backend", "version": 2},
+            )
+            self.assertIn("deploy/release.sh", names)
+            self.assertIn("demo/assets/manifest.json", names)
+
+    def test_legacy_archive_still_validates(self):
+        legacy = self.rewrite_archive(
+            "legacy.tar.gz",
+            {"release.json": None, "frontend/index.html": b"legacy SPA"},
+        )
+        output = self.root / "legacy-out"
+        output.mkdir()
+        receiver.extract_verified(legacy, output)
+        self.assertEqual((output / "frontend/index.html").read_bytes(), b"legacy SPA")
+
+    def test_invalid_format_and_missing_runtime_files_are_rejected(self):
+        cases = [
+            {"release.json": b'{"format":"stayhub-backend","version":99}'},
+            {"frontend/index.html": b"not backend-only"},
+            {"deploy/compose.yaml": None},
+            {"release.json": None},
+        ]
+        for i, changes in enumerate(cases):
+            with self.subTest(changes=changes):
+                output = self.root / f"invalid-{i}"
+                output.mkdir()
+                archive = self.rewrite_archive(f"invalid-{i}.tar.gz", changes)
+                with self.assertRaises(ValueError):
+                    receiver.extract_verified(archive, output)
 
     def test_archive_rejects_path_escape_and_links(self):
         for name, kind in [
@@ -203,6 +259,7 @@ fi
 if [ -f "$STAYHUB_ROOT/fail-up" ]; then
  case "$*" in *"up -d"*) rm "$STAYHUB_ROOT/fail-up"; exit 1 ;; esac
 fi
+case "$*" in *"up -d"*) printf '%s' "$BACKEND_IMAGE" > "$STAYHUB_ROOT/running-image" ;; esac
 exit 0
 """)
         docker.chmod(0o755)
@@ -234,8 +291,13 @@ exit 0
 
         class API(BaseHTTPRequestHandler):
             def do_GET(self):
-                active = (outer.www / "current").resolve()
-                bad = (active / "bad").exists()
+                running = outer.root / "running-image"
+                active = (
+                    running.read_text().strip().rsplit(":", 1)[-1]
+                    if running.exists()
+                    else ""
+                )
+                bad = (outer.root / "releases" / active / "bad").is_file()
                 if self.path == "/api/ready":
                     status, data = (
                         200,
@@ -299,10 +361,8 @@ exit 0
         target.mkdir(parents=True)
         shutil.copytree(DEPLOY, target / "deploy")
         shutil.copytree(PROJECT / "demo/assets", target / "demo/assets")
-        (target / "frontend").mkdir()
-        (target / "frontend/index.html").write_text("SPA")
         if bad:
-            (target / "frontend/bad").write_text("bad")
+            (target / "bad").write_text("bad")
         result = subprocess.run(
             ["bash", str(target / "deploy/release.sh"), sha],
             check=False,
@@ -319,6 +379,24 @@ exit 0
         self.assertIn("Public HTTPS readiness", result.stdout)
         self.assertEqual((self.root / "current").resolve().name, "a" * 40)
         self.assertIn("X-Forwarded-For $remote_addr", self.nginx.read_text())
+        self.assertNotIn("try_files", self.nginx.read_text())
+        self.assertNotIn("root ", self.nginx.read_text().split("listen 443 ssl;", 1)[1])
+        self.assertEqual(list((self.www / "releases").iterdir()), [])
+        self.assertFalse((self.www / "current").exists())
+        self.assertFalse((self.root / "current/frontend").exists())
+
+    def test_existing_web_archive_and_link_untouched_on_success_and_failure(self):
+        old = self.www / "releases/old"
+        old.mkdir()
+        (old / "index.html").write_text("retained recovery artifact")
+        (self.www / "current").symlink_to(old)
+        self.assertEqual(self.release("a" * 40).returncode, 0)
+        self.assertNotEqual(self.release("b" * 40, bad=True).returncode, 0)
+        self.assertEqual((self.www / "current").resolve(), old.resolve())
+        self.assertEqual((old / "index.html").read_text(), "retained recovery artifact")
+        self.assertEqual(
+            sorted(p.name for p in (self.www / "releases").iterdir()), ["old"]
+        )
 
     def test_spa_fallback_fails_and_restores_previous(self):
         self.assertEqual(self.release("a" * 40).returncode, 0)
@@ -327,7 +405,6 @@ exit 0
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("recovery verified", result.stdout, result.stdout + result.stderr)
         self.assertEqual((self.root / "current").resolve().name, "a" * 40)
-        self.assertEqual((self.www / "current").resolve().name, "a" * 40)
         self.assertEqual(self.nginx.read_bytes(), previous_config)
         self.assertIn(
             "registry/backend:" + "a" * 40,

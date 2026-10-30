@@ -49,6 +49,7 @@ jobs:
       - run: uv sync --frozen --project backend
       - run: backend/.venv/bin/python infra/tests/test_storage_credentials.py
       - run: backend/.venv/bin/python infra/tests/test_deployment.py
+      - run: backend/.venv/bin/python infra/tests/test_frontend_delivery.py
       - run: uv run --frozen ruff check . && uv run --frozen mypy app tests
         working-directory: backend
       - name: Start isolated test storage
@@ -84,6 +85,8 @@ jobs:
       RELEASE_BUCKET: ${{ vars.RELEASE_BUCKET }}
       EC2_INSTANCE_ID: ${{ vars.EC2_INSTANCE_ID }}
       DEPLOY_DOCUMENT: ${{ vars.DEPLOY_DOCUMENT }}
+      FRONTEND_BUCKET: ${{ vars.FRONTEND_BUCKET }}
+      CLOUDFRONT_DISTRIBUTION_ID: ${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
@@ -94,7 +97,8 @@ jobs:
         with:
           role-to-assume: ${{ vars.AWS_ROLE_ARN }}
           aws-region: us-east-1
-          allowed-account-ids: '762079300828'
+      - name: Verify deployment AWS account
+        run: test "$(aws sts get-caller-identity --query Account --output text)" = '762079300828'
       - run: aws ecr get-login-password | docker login --username AWS --password-stdin "$REGISTRY"
       - name: Build immutable backend image
         shell: bash
@@ -113,7 +117,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          digest=$(python3 infra/deploy/package.py --frontend release/frontend --output release.tar.gz)
+          digest=$(python3 infra/deploy/package.py --output release.tar.gz)
           aws s3 cp release.tar.gz "s3://$RELEASE_BUCKET/releases/$GITHUB_SHA/$digest.tar.gz"
           command_id=$(aws ssm send-command --instance-ids "$EC2_INSTANCE_ID" --document-name "$DEPLOY_DOCUMENT" --parameters "Release=$GITHUB_SHA,Sha256=$digest" --query 'Command.CommandId' --output text)
           for attempt in $(seq 1 120); do
@@ -126,3 +130,10 @@ jobs:
           done
           echo "Deployment wait timed out; inspect SSM command $command_id before retrying."
           exit 1
+      - name: Verify API health before frontend publication
+        run: python3 infra/deploy/verify-https.py https://d3dq33pjylwj4i.cloudfront.net
+      - name: Publish frontend after healthy backend
+        run: >-
+          python3 infra/deploy/publish-frontend.py
+          --frontend release/frontend --release "$GITHUB_SHA"
+          --bucket "$FRONTEND_BUCKET" --distribution "$CLOUDFRONT_DISTRIBUTION_ID"

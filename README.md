@@ -138,7 +138,7 @@ make persistence-booking
 
 The `expiry-worker` local Compose service runs `python -m app.expire_requests --loop --interval 60 --batch-size 100` against the same persistent database. `make expire-requests` runs one bounded batch on demand. Requests expire at business now>=created_at+24h; an overdue host action commits expiry/refund/release before returning409 even if the periodic worker has not run. Repeated/overlapping sweeps are safe. Initial startup can precede migrations; the worker retries while schema/services are unavailable. No clock advance endpoint/UI is included. Isolated injected-time backend tests prove the24h boundary without changing development records or waiting interactively.
 
-`make persistence-booking` creates unique review accounts and one fictional listing with five existing licensed illustrative photos, makes three reservations, accepts/declines as appropriate, edits/unlists only its own listing, and verifies party snapshots/photos and all reservation/money/occupancy/event rows across ordinary db/storage/API/frontend/worker restarts. It retains its review records, never deletes volumes/data/uploads, and writes safe codes/amounts/row evidence under `evidence/m4/`. `scripts/m4-runtime-evidence.py` compares pre-M4 baseline row hashes and old API schemas to the rebuilt runtime; only documented Today/calendar API changes are permitted.
+`make persistence-booking` creates unique review accounts and one fictional listing with five existing licensed illustrative photos, makes three reservations, accepts/declines as appropriate, edits/unlists only its own listing, and verifies party snapshots/photos and all reservation/money/occupancy/event rows across ordinary db/storage/API/frontend/worker restarts. It retains its review records, never deletes volumes/data/uploads, and writes safe codes/amounts/row evidence under `evidence/m4/`.
 
 M4 does not implement guest/host cancellation, percentage refunds, checked-in/completed transitions, payout release/earnings, admin event-log UI, demo clock controls, real payments, AWS deployment, messaging or email. No new public/private-photo shortcut, dependency migration or destructive reset is required.
 
@@ -192,26 +192,3 @@ Run the ten required checks serially: `make lint`, `make format-check`, `make ty
 For the added real loading/error/retry, role/session and payout-colour checks, run `cd frontend` followed by `npx playwright test e2e/v1-review.spec.ts`. Run Playwright from that directory so it reads the existing configuration. No extra dependencies are required. Backend tests retain globally enforced fail-closed test storage and the separate Postgres test database, including individual-file runs.
 
 Follow the [five-minute local demonstration](docs/m6-demo.md). Main and review setup/migrations/seeds, actual financial reconciliation/restart results, baseline data/photo preservation and desktop/narrow captures are linked from the M6 evidence. Local verification does not establish remote deployment acceptance.
-
-## M6.1 retained fresh-volume verification
-
-Fresh application database/object storage was verified on this existing machine at [localhost5193](http://localhost:5193), API8020, storage9020. This is the retained `stayhub-m61-cold-20261030` project, independent of main5173 and review5183. Its private `.env.m61.local` contains separately generated credentials and must remain private; no database or object-store volume was copied. This proves fresh-volume setup, not installation on a different machine.
-
-For a first run with these project names/ports unused, the verification helper creates private values from `.env.example`, checks effective Compose ports/mounts/buckets and absence of project volumes, then follows the scoped setup/build commands:
-
-```sh
-python3 scripts/m61-local.py prepare
-python3 scripts/m61-local.py preflight
-python3 scripts/m61-local.py baseline
-python3 scripts/m61-local.py setup
-python3 scripts/m61-local.py browser-initial
-python3 scripts/m61-local.py repeat-restart
-python3 scripts/m61-local.py browser-after
-python3 scripts/m61-local.py ledger
-python3 scripts/m61-local.py quality
-python3 scripts/m61-local.py preservation
-```
-
-The retained environment already exists: **do not rerun `prepare`/`preflight`/empty-store setup against it**; their guards intentionally reject reuse. Review it by opening the URL and privately reading its seed credentials locally. Browser checks require the host Playwright runtime described above. The helper fixes clock-advancing checks to5193, injects private seed credentials through the child environment and records exact scoped Compose/Playwright invocations without secret values. `repeat-restart` preserves volumes and compares business/seed/object records; each of its two content imports adds one expected auth session.
-
-[Exact commands, results, retained verification failure/correction and preservation evidence](docs/m61-evidence.md). The override is local verification only; no deployment files/resources changed. Retain this project/volumes for master review.

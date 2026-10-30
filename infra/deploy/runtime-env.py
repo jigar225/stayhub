@@ -38,7 +38,9 @@ assert len(app["JWT_SECRET"]) >= 32, "JWT_SECRET must have at least 32 character
 values = {
     "DATABASE_URL": f"postgresql+psycopg://{quote(db['username'], safe='')}:{quote(db['password'], safe='')}@{config['db_host']}:5432/stayhub?sslmode=require",
     "JWT_SECRET": app["JWT_SECRET"],
-    "TRUSTED_ORIGINS": f"https://{config['ip']}",
+    "TRUSTED_ORIGINS": ",".join(
+        filter(None, [f"https://{config['ip']}", config.get("cdn_origin")])
+    ),
     "COOKIE_SECURE": "true",
     "DEMO_MODE": "false",
     "S3_USE_IAM_ROLE": "true",

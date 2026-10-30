@@ -41,7 +41,7 @@ resource "aws_s3_bucket_cors_configuration" "photos" {
   bucket = aws_s3_bucket.main["photos"].id
   cors_rule {
     allowed_methods = ["PUT", "GET", "HEAD"]
-    allowed_origins = ["https://${aws_eip.app.public_ip}"]
+    allowed_origins = ["https://${aws_eip.app.public_ip}", "https://${aws_cloudfront_distribution.frontend.domain_name}"]
     allowed_headers = ["*"]
     expose_headers  = ["ETag"]
     max_age_seconds = 300

@@ -36,3 +36,20 @@ frontend/dist/
 *.tfvars.json
 crash.log
 crash.*.log
+
+# One-off local milestone verification (not shared review tooling).
+/compose.m61-cold.yaml
+/compose.m7-review.yaml
+/scripts/m61-local.py
+
+# Local milestone reports and one-off evidence capture helpers.
+/infra/CDN-MILESTONE.md
+/scripts/m2-source-state.py
+/scripts/m3-runtime-evidence.py
+/scripts/m4-runtime-evidence.py
+/scripts/m5-preservation.py
+/scripts/m5-source-evidence.py
+/scripts/m6-snapshot.py
+/scripts/m61-ledger.py
+/scripts/m7-smoke.py
+/scripts/run-checks.py
