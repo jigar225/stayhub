@@ -10,6 +10,7 @@ from sqlalchemy import (
     CheckConstraint,
     Date,
     DateTime,
+    Float,
     ForeignKey,
     ForeignKeyConstraint,
     Integer,
@@ -94,6 +95,12 @@ class Listing(Base):
         ),
         CheckConstraint("version >= 1", name="listing_version"),
         CheckConstraint(
+            "(latitude IS NULL AND longitude IS NULL) OR "
+            "(latitude IS NOT NULL AND longitude IS NOT NULL AND "
+            "latitude BETWEEN -90 AND 90 AND longitude BETWEEN -180 AND 180)",
+            name="listing_coordinate_pair",
+        ),
+        CheckConstraint(
             "nightly_minor IS NULL OR nightly_minor BETWEEN 100 AND 10000000",
             name="nightly_bounds",
         ),
@@ -116,6 +123,8 @@ class Listing(Base):
     version: Mapped[int] = mapped_column(Integer, default=1)
     property_type: Mapped[str | None] = mapped_column(String(20))
     address: Mapped[str | None] = mapped_column(String(300))
+    latitude: Mapped[float | None] = mapped_column(Float)
+    longitude: Mapped[float | None] = mapped_column(Float)
     destination: Mapped[str | None] = mapped_column(String(100))
     timezone: Mapped[str | None] = mapped_column(String(100))
     capacity: Mapped[int | None] = mapped_column(Integer)
@@ -409,3 +418,16 @@ class AppClock(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     offset_seconds: Mapped[int] = mapped_column(BigInteger, default=0)
     version: Mapped[int] = mapped_column(Integer, default=1)
+
+
+class LocationProviderBudget(Base):
+    """One durable budget shared across API processes; contains no searches."""
+
+    __tablename__ = "location_provider_budget"
+    __table_args__ = (CheckConstraint("id = 1", name="location_budget_singleton"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    day: Mapped[date] = mapped_column(Date)
+    requests: Mapped[int] = mapped_column(Integer, default=0)
+    recent_requests: Mapped[list[float]] = mapped_column(JSON, default=list)
+    host_requests: Mapped[dict[str, list[float]]] = mapped_column(JSON, default=dict)
+    blocked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

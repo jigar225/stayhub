@@ -18,6 +18,7 @@ import {
 import { changedFields, toForm, type ListingForm } from "./form";
 import { PhotoManager } from "./PhotoManager";
 import { StatusBadge } from "./ListingCards";
+import { LocationEditor } from "../location/LocationEditor";
 import { STAY_CATEGORIES } from "../discovery/categories";
 const steps = [
   "The basics",
@@ -186,12 +187,33 @@ export function ListingWizard() {
     const merged = { ...toForm(latest) };
     for (const key of Object.keys(form) as (keyof DraftFields)[])
       if (form[key] !== prior[key]) merged[key] = form[key];
+    // Address and its pin are one unit during conflict recovery.
+    const addressEdited = form.address !== prior.address;
+    const pinEdited =
+      form.latitude !== prior.latitude || form.longitude !== prior.longitude;
+    const addressChangedElsewhere = latest.address !== listing.address;
+    if (addressEdited) {
+      merged.address = form.address;
+      merged.latitude = form.latitude;
+      merged.longitude = form.longitude;
+    } else if (pinEdited && addressChangedElsewhere) {
+      // Keep the newer saved address; an old-address adjustment needs reconfirmation.
+      merged.latitude = "";
+      merged.longitude = "";
+    } else if (pinEdited) {
+      merged.latitude = form.latitude;
+      merged.longitude = form.longitude;
+    }
     setForm(merged);
     setListing(latest);
     setLatest(null);
     setStale(false);
     setError("");
-    setSaved("Your edits are ready to save against the latest version.");
+    setSaved(
+      pinEdited && !addressEdited && addressChangedElsewhere
+        ? "The saved address changed elsewhere. Your other edits are kept; confirm a pin for the new address before saving."
+        : "Your edits are ready to save against the latest version.",
+    );
   }
   async function authenticate() {
     setReauthError("");
@@ -364,7 +386,33 @@ export function ListingWizard() {
             hint: "City and country",
             maxLength: 100,
           })}
-          {field("address", "Street address", { maxLength: 300 })}
+          <LocationEditor
+            key={`${listing.id}-${listing.version}`}
+            address={form.address}
+            latitude={form.latitude}
+            longitude={form.longitude}
+            disabled={disabled}
+            error={[
+              fieldText(errors.address),
+              fieldText(errors.latitude),
+              fieldText(errors.longitude),
+            ]
+              .filter(Boolean)
+              .join(" ")}
+            onChange={(fields) => {
+              if (busyRef.current) return;
+              setForm((current) =>
+                current ? { ...current, ...fields } : current,
+              );
+              setSaved("Unsaved changes");
+              setErrors((current) => ({
+                ...current,
+                address: "",
+                latitude: "",
+                longitude: "",
+              }));
+            }}
+          />
           {field("timezone", "Timezone", {
             hint: "IANA timezone, e.g. Europe/Lisbon",
             maxLength: 100,
@@ -383,19 +431,16 @@ export function ListingWizard() {
               Choose only categories that accurately describe your place. All
               listings appear under Homes, including places with no categories.
             </p>
-            <div
-              style={{ display: "flex", flexWrap: "wrap", gap: "12px 20px" }}
-            >
+            <div className="listing-category-options">
               {STAY_CATEGORIES.filter((category) => category.value).map(
                 (category) => (
                   <label
                     key={category.value}
-                    style={{ display: "flex", alignItems: "center", gap: 8 }}
+                    className="listing-category-option"
                   >
                     <input
                       id={`categories-${category.value}`}
                       type="checkbox"
-                      style={{ width: 18, height: 18 }}
                       checked={form.categories
                         .split("\n")
                         .includes(category.value)}

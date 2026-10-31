@@ -17,11 +17,13 @@ from app.discovery_routes import router as discovery_router
 from app.errors import ApiError, error_response
 from app.financial_routes import router as financial_router
 from app.listing_routes import router as listing_router
+from app.location_routes import router as location_router
 
 get_settings()  # Fail fast on missing or invalid runtime configuration.
 app = FastAPI(title="StayHub API", version="0.2.0")
 app.include_router(router)
 app.include_router(listing_router)
+app.include_router(location_router)
 app.include_router(calendar_router)
 app.include_router(discovery_router)
 app.include_router(booking_router)

@@ -192,3 +192,40 @@ Run the ten required checks serially: `make lint`, `make format-check`, `make ty
 For the added real loading/error/retry, role/session and payout-colour checks, run `cd frontend` followed by `npx playwright test e2e/v1-review.spec.ts`. Run Playwright from that directory so it reads the existing configuration. No extra dependencies are required. Backend tests retain globally enforced fail-closed test storage and the separate Postgres test database, including individual-file runs.
 
 Follow the [five-minute local demonstration](docs/m6-demo.md). Main and review setup/migrations/seeds, actual financial reconciliation/restart results, baseline data/photo preservation and desktop/narrow captures are linked from the M6 evidence. Local verification does not establish remote deployment acceptance.
+
+## Integrated Guest/Host release
+
+Guest detail includes an all-photo viewer (arrows, Home/End, Escape and focus
+return), a visible listing-local availability calendar, explicit date application,
+and server-validated quotes/Reserve. Unavailable calendar cells describe nights;
+a guest may check out on the first unavailable night. Availability is advisory
+until booking succeeds. Tablet detail stacks the quote and content at 1100px and
+below; mobile controls and dialogs remain usable independently of map loading.
+Host Today identifies confirmed arrivals for each stay's local business date
+from the loaded reservations, with honest pagination counts. Trip cards use
+party-authorized stay photos with bounded renewal/retry and booked summaries.
+
+M8 filter fields are additive read-only search parameters. M9A adds migration
+`0007_listing_location` after `0006_listing_categories`: nullable paired finite
+owner latitude/longitude and a persisted provider budget, without address
+backfill or changes to publication requirements, timezones or booked money.
+Existing owner PATCH `/api/v1/host/listings/{id}` uses the existing optimistic
+version. An address change without explicitly reconfirmed coordinates clears
+the old location; both-null coordinates deliberately remove it.
+
+POST `/api/v1/host/location/autocomplete` accepts a bounded JSON query for live
+hosts only. The optional key is server-only; see the [operator configuration](infra/README.md#optional-server-only-address-autocomplete).
+GET `/api/v1/listings/{id}/location` is published-only and exposes null or a
+server-rounded 0.01-degree approximate point, an 800m display area and zoom cap12.
+Precise coordinates remain owner-only. This coarse display is not an anonymity
+guarantee. No viewport search or exact-location guest release is introduced.
+MapLibre/OpenFreeMap assets load lazily, with visible attribution and fallback;
+provider failure leaves the listing, manual location controls and booking usable.
+
+Reusable browser tests include `detail-extras.spec.ts`,
+`integrated-layout.spec.ts`, date/filter/focus and location specs under
+`frontend/e2e`. Run serially with the normal Playwright configuration against an
+isolated seeded stack and private `SEED_*` environment values. Tests create
+fictional local records. Local runners, screenshots and milestone stack files
+are ignored; preserve all review volumes. Mocked autocomplete tests never prove
+live Geoapify integration. No production release is implied by local checks.

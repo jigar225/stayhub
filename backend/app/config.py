@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     rate_limit_attempts: int = Field(default=10, ge=1, le=1000)
     rate_limit_window_seconds: int = Field(default=60, ge=1, le=3600)
 
+    geoapify_api_key: SecretStr = SecretStr("")
+    geoapify_daily_budget: int = Field(default=2800, ge=1, le=3000)
+
     s3_use_iam_role: bool = False
     s3_endpoint_url: str = "http://storage:9000"
     s3_public_endpoint_url: str = "http://localhost:9000"

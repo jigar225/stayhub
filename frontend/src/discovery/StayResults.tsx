@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { Button, EmptyState, ErrorState } from "../components/ui";
 import { ApiError } from "../api/client";
@@ -8,35 +8,60 @@ import { searchValues } from "./dates";
 import { STAY_CATEGORIES } from "./categories";
 import { StayIcon } from "./StayIcon";
 import { PublicPhotos } from "./PublicPhotos";
+import { FiltersDrawer } from "./FiltersDrawer";
+import { activeFilterCount, applyFilters } from "./filters";
 import { formatEUR } from "../listings/form";
 export function StayResults({ explore = false }: { explore?: boolean }) {
   const [params, setParams] = useSearchParams();
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const generation = useRef(0);
+  const moreRequest = useRef<{
+    generation: number;
+    controller: AbortController;
+  } | null>(null);
   const category = params.get("category") ?? "";
   const query = params.toString();
+  const [attempt, setAttempt] = useState(0);
+  const requestKey = useMemo(() => ({ query, attempt }), [query, attempt]);
   const [data, setData] = useState<{
     query: string;
+    requestKey: object;
+    generation: number;
     items: PublicSummary[];
     cursor: string | null;
   } | null>(null);
   const [failure, setFailure] = useState<{
     query: string;
+    requestKey: object;
     message: string;
   } | null>(null);
-  const [attempt, setAttempt] = useState(0);
-  const [moreQuery, setMoreQuery] = useState<string | null>(null);
-  const moreBusy = moreQuery === query;
+  const [moreQuery, setMoreQuery] = useState<{
+    requestKey: object;
+    generation: number;
+  } | null>(null);
+  const moreBusy =
+    moreQuery?.requestKey === requestKey &&
+    moreQuery?.generation === data?.generation;
   const [moreError, setMoreError] = useState<{
     query: string;
+    generation: number;
     message: string;
   } | null>(null);
   useEffect(() => {
     let active = true;
+    const requestGeneration = ++generation.current;
     const controller = new AbortController();
     void discoveryApi
       .search(query, controller.signal)
       .then((result) => {
         if (active) {
-          setData({ query, items: result.items, cursor: result.next_cursor });
+          setData({
+            query,
+            requestKey,
+            generation: requestGeneration,
+            items: result.items,
+            cursor: result.next_cursor,
+          });
           setFailure(null);
         }
       })
@@ -44,6 +69,7 @@ export function StayResults({ explore = false }: { explore?: boolean }) {
         if (active)
           setFailure({
             query,
+            requestKey,
             message:
               error instanceof ApiError && error.details.field_errors
                 ? `${error.message} ${Object.values(error.details.field_errors).flat().join(" ")}`
@@ -55,20 +81,30 @@ export function StayResults({ explore = false }: { explore?: boolean }) {
     return () => {
       active = false;
       controller.abort();
+      generation.current += 1;
+      moreRequest.current?.controller.abort();
+      moreRequest.current = null;
     };
-  }, [query, attempt]);
-  const current = data?.query === query ? data : null;
-  const error = failure?.query === query ? failure.message : null;
+  }, [query, requestKey]);
+  const current = data?.requestKey === requestKey ? data : null;
+  const error = failure?.requestKey === requestKey ? failure.message : null;
   async function more() {
-    if (!current?.cursor) return;
-    setMoreQuery(query);
+    if (!current?.cursor || moreRequest.current) return;
+    const requestGeneration = current.generation;
+    const controller = new AbortController();
+    moreRequest.current = { generation: requestGeneration, controller };
+    setMoreQuery({ requestKey, generation: requestGeneration });
     setMoreError(null);
     try {
       const next = new URLSearchParams(query);
       next.set("cursor", current.cursor);
-      const result = await discoveryApi.search(next.toString());
+      const result = await discoveryApi.search(
+        next.toString(),
+        controller.signal,
+      );
+      if (generation.current !== requestGeneration) return;
       setData((previous) =>
-        previous?.query === query
+        previous?.query === query && previous.generation === requestGeneration
           ? {
               ...previous,
               items: [
@@ -82,20 +118,32 @@ export function StayResults({ explore = false }: { explore?: boolean }) {
           : previous,
       );
     } catch (e) {
+      if (generation.current !== requestGeneration) return;
       setMoreError({
         query,
+        generation: requestGeneration,
         message: e instanceof Error ? e.message : "Could not load more stays.",
       });
     } finally {
-      setMoreQuery((previous) => (previous === query ? null : previous));
+      if (generation.current === requestGeneration) {
+        moreRequest.current = null;
+        setMoreQuery(null);
+      }
     }
+  }
+  function selectCategory(value: string) {
+    const next = new URLSearchParams(params);
+    next.delete("cursor");
+    if (value) next.set("category", value);
+    else next.delete("category");
+    setParams(next);
   }
   const values = searchValues(params);
   return (
     <main
       className={`page-container discovery-page ${explore ? "explore-page" : ""}`}
     >
-      <div className={explore ? "explore-intro" : undefined}>
+      <div className={`explore-intro ${explore ? "" : "results-intro"}`}>
         <div className="page-heading">
           <h1>
             {explore ? "Find a place to stay" : "Stays for your next chapter"}
@@ -109,29 +157,75 @@ export function StayResults({ explore = false }: { explore?: boolean }) {
         <SearchForm
           key={query}
           initial={values}
-          joined={explore}
+          joined
+          preserveQuery={query}
           category={category}
         />
       </div>
-      <nav className="stay-categories" aria-label="Stay categories">
-        {STAY_CATEGORIES.map(({ value, label }) => (
-          <button
-            key={value}
-            type="button"
-            aria-pressed={category === value}
-            onClick={() => {
-              const next = new URLSearchParams(params);
-              next.delete("cursor");
-              if (value) next.set("category", value);
-              else next.delete("category");
-              setParams(next);
-            }}
-          >
-            <StayIcon name={value} />
-            <span>{label}</span>
-          </button>
-        ))}
-      </nav>
+      <div className="discovery-toolbar">
+        {explore ? (
+          <nav className="stay-categories" aria-label="Stay categories">
+            {STAY_CATEGORIES.map(({ value, label }) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={category === value}
+                onClick={() => selectCategory(value)}
+              >
+                <StayIcon name={value} />
+                <span>{label}</span>
+              </button>
+            ))}
+          </nav>
+        ) : (
+          <label className="results-category-control">
+            <span>Category</span>
+            <select
+              className="results-category-select"
+              aria-label="Stay category"
+              value={category}
+              onChange={(event) => selectCategory(event.target.value)}
+            >
+              {!STAY_CATEGORIES.some(({ value }) => value === category) && (
+                <option value={category}>Unsupported category</option>
+              )}
+              {STAY_CATEGORIES.map(({ value, label }) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        <Button
+          variant="secondary"
+          className="filters-trigger"
+          aria-label={
+            activeFilterCount(params)
+              ? `Filters (${activeFilterCount(params)} active)`
+              : "Filters"
+          }
+          aria-haspopup="dialog"
+          aria-expanded={filtersOpen}
+          onClick={() => setFiltersOpen(true)}
+        >
+          <StayIcon name="filters" />
+          Filters
+          {activeFilterCount(params) > 0 && (
+            <span className="filters-count">{activeFilterCount(params)}</span>
+          )}
+        </Button>
+      </div>
+      {filtersOpen && (
+        <FiltersDrawer
+          params={params}
+          onClose={() => setFiltersOpen(false)}
+          onApply={(draft) => {
+            setParams(applyFilters(params, draft));
+            setFiltersOpen(false);
+          }}
+        />
+      )}
       {error ? (
         <ErrorState message={error} retry={() => setAttempt(attempt + 1)} />
       ) : !current ? (
@@ -148,7 +242,7 @@ export function StayResults({ explore = false }: { explore?: boolean }) {
             </Link>
           }
         >
-          Try a different destination, fewer guests or another set of dates.
+          Try adjusting your filters, destination, guests or dates.
         </EmptyState>
       ) : (
         <>
@@ -156,12 +250,14 @@ export function StayResults({ explore = false }: { explore?: boolean }) {
             <h2>
               {explore
                 ? "Places to make your own"
-                : `${current.items.length} ${current.items.length === 1 ? "stay" : "stays"}${current.cursor ? " loaded" : ""}`}
+                : `${current.items.length} ${current.items.length === 1 ? "stay" : "stays"} shown`}
             </h2>
             <p className="muted">
               {values.check_in && values.check_out
                 ? "Stay totals include cleaning and the StayHub service fee."
-                : `${current.items.length} ${current.items.length === 1 ? "stay" : "stays"}${current.cursor ? " loaded" : " available"} · Choose dates for the full stay price.`}
+                : explore
+                  ? `${current.items.length} ${current.items.length === 1 ? "stay" : "stays"} shown · Choose dates for the full stay price.`
+                  : "Choose dates for the full stay price."}
             </p>
           </div>
           <div className={explore ? "public-stay-grid" : "public-stay-results"}>
@@ -212,9 +308,13 @@ export function StayResults({ explore = false }: { explore?: boolean }) {
               </article>
             ))}
           </div>
-          {moreError?.query === query && (
-            <ErrorState message={moreError.message} retry={() => void more()} />
-          )}{" "}
+          {moreError?.query === query &&
+            moreError.generation === current.generation && (
+              <ErrorState
+                message={moreError.message}
+                retry={() => void more()}
+              />
+            )}{" "}
           {current.cursor && (
             <Button
               variant="secondary"

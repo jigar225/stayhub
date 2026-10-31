@@ -2,10 +2,11 @@ import { test, expect, type Page } from "@playwright/test";
 import { randomBytes } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import type { Reservation } from "../src/booking/api";
+const evidenceDir = process.env.SMOKE_EVIDENCE_DIR ?? "evidence";
 const origin = process.env.SMOKE_BASE_URL ?? "http://localhost:5173";
 const iso = (date: Date) => date.toISOString().slice(0, 10);
 async function capture(page: Page, name: string) {
-  await mkdir("evidence", { recursive: true });
+  await mkdir(evidenceDir, { recursive: true });
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 });
     await page.evaluate(() => window.scrollTo(0, 0));
@@ -20,7 +21,7 @@ async function capture(page: Page, name: string) {
       ),
     ).toBe(true);
     await page.screenshot({
-      path: `evidence/m4-${name}-${width}.png`,
+      path: `${evidenceDir}/m4-${name}-${width}.png`,
       fullPage: true,
     });
   }
@@ -269,9 +270,9 @@ test("real request acceptance, decline refund, instant unknown-outcome recovery 
   await capture(page, "confirmation");
   await page.reload();
   await expect(page.getByText(confirmed.code, { exact: true })).toBeVisible();
-  await mkdir("evidence", { recursive: true });
+  await mkdir(evidenceDir, { recursive: true });
   await writeFile(
-    "evidence/m4-booking-codes.json",
+    `${evidenceDir}/m4-booking-codes.json`,
     JSON.stringify(
       {
         accepted: { id: created.id, code: created.code },

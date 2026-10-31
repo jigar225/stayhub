@@ -3,6 +3,8 @@ export type ListingForm = Record<keyof DraftFields, string>;
 export const fieldNames: ReadonlyArray<keyof DraftFields> = [
   "property_type",
   "address",
+  "latitude",
+  "longitude",
   "destination",
   "timezone",
   "capacity",
@@ -59,7 +61,15 @@ export function changedFields(
     const value = form[key].trim();
     if (key === "nightly_minor" || key === "cleaning_minor")
       changes[key] = parseMoney(value);
-    else if (integers.has(key)) {
+    else if (key === "latitude" || key === "longitude") {
+      const number = Number(value);
+      const bound = key === "latitude" ? 90 : 180;
+      if (value && (!Number.isFinite(number) || Math.abs(number) > bound))
+        throw new Error(
+          "Enter valid latitude and longitude, then confirm the pin.",
+        );
+      changes[key] = value ? number : null;
+    } else if (integers.has(key)) {
       if (value && !/^\d+$/.test(value))
         throw new Error("Guest and room counts must be whole numbers.");
       changes[key] = value ? Number(value) : null;
@@ -79,6 +89,11 @@ export function changedFields(
           )
         : [];
     else changes[key] = value || null;
+  }
+  // A location is one atomic pair, including explicit both-null clearing.
+  if ("latitude" in changes || "longitude" in changes) {
+    changes.latitude = form.latitude.trim() ? Number(form.latitude) : null;
+    changes.longitude = form.longitude.trim() ? Number(form.longitude) : null;
   }
   return changes as Partial<DraftFields>;
 }

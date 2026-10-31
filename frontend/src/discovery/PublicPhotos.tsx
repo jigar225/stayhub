@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { Button } from "../components/ui";
 import { discoveryApi, type PublicPhoto } from "./api";
+import { PhotoViewer } from "./PhotoViewer";
 export function PublicPhotos({
   listingId,
   photos: initial,
@@ -15,6 +16,7 @@ export function PublicPhotos({
   renewPhotos?: () => Promise<{ items: PublicPhoto[] }>;
 }) {
   const [photos, setPhotos] = useState(initial);
+  const [viewing, setViewing] = useState<number | null>(null);
   const [failed, setFailed] = useState(false);
   const [loading, setLoading] = useState(false);
   const flight = useRef(false);
@@ -54,28 +56,66 @@ export function PublicPhotos({
   if (!photos.length)
     return <div className="photo-placeholder">Photos are unavailable.</div>;
   return (
-    <div
-      className={gallery ? "public-gallery" : "public-cover"}
-      aria-busy={loading}
-    >
-      {photos.map((photo, index) => (
-        <div
-          key={`${photo.id}-${photo.url}`}
-          className={gallery && index === 0 ? "gallery-cover" : ""}
-        >
-          <img
-            src={photo.url}
-            alt={`${title}${gallery ? `, photo ${index + 1}` : ""}`}
-            onError={() => void renew()}
-            loading={gallery || index === 0 ? "eager" : "lazy"}
-          />
-        </div>
-      ))}
-      {loading && (
-        <span className="photo-renew-status" role="status">
-          Refreshing photo access…
-        </span>
+    <>
+      <div
+        className={gallery ? "public-gallery" : "public-cover"}
+        aria-busy={loading}
+      >
+        {(gallery ? photos.slice(0, 5) : photos).map((photo, index) => (
+          <div
+            key={`${photo.id}-${photo.url}`}
+            className={gallery && index === 0 ? "gallery-cover" : ""}
+          >
+            {gallery ? (
+              <button
+                type="button"
+                className="gallery-photo-button"
+                aria-label={`Open photo ${index + 1} of ${photos.length}`}
+                onClick={() => setViewing(index)}
+              >
+                <img
+                  src={photo.url}
+                  alt={`${title}, photo ${index + 1}`}
+                  onError={() => void renew()}
+                  loading="eager"
+                />
+              </button>
+            ) : (
+              <img
+                src={photo.url}
+                alt={`${title}${gallery ? `, photo ${index + 1}` : ""}`}
+                onError={() => void renew()}
+                loading={gallery || index === 0 ? "eager" : "lazy"}
+              />
+            )}
+          </div>
+        ))}
+        {gallery && (
+          <Button
+            type="button"
+            variant="secondary"
+            className="gallery-open-button"
+            onClick={() => setViewing(0)}
+          >
+            Show all {photos.length} photos
+          </Button>
+        )}
+        {loading && (
+          <span className="photo-renew-status" role="status">
+            Refreshing photo access…
+          </span>
+        )}
+      </div>
+      {viewing !== null && (
+        <PhotoViewer
+          photos={photos}
+          title={title}
+          index={viewing}
+          onIndex={setViewing}
+          onClose={() => setViewing(null)}
+          onError={() => void renew()}
+        />
       )}
-    </div>
+    </>
   );
 }

@@ -1,12 +1,14 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import { mkdir } from "node:fs/promises";
+import { calendarDay, chooseDateRange, dateText } from "./date-helpers";
+const evidenceDir = process.env.SMOKE_EVIDENCE_DIR ?? "evidence";
 const listingId = "975a5b9c-b000-5f01-b9aa-2a8f9d369ec4";
 function isoDate(date: Date) {
   return date.toISOString().slice(0, 10);
 }
 async function capture(page: Page, name: string) {
-  await mkdir("evidence", { recursive: true });
+  await mkdir(evidenceDir, { recursive: true });
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 });
     if (name === "calendar" && width === 390)
@@ -29,7 +31,7 @@ async function capture(page: Page, name: string) {
       )
       .toBe(true);
     await page.screenshot({
-      path: `evidence/m3-${name}-${width}.png`,
+      path: `${evidenceDir}/m3-${name}-${width}.png`,
       fullPage: true,
     });
     expect(
@@ -68,8 +70,12 @@ test("host block excludes a stay, unblock restores it, public quote matches €7
 }) => {
   test.setTimeout(120000);
   const { email, password } = await seedCredentials();
-  const checkIn = isoDate(new Date(Date.now() + 45 * 86400000));
-  const checkOut = isoDate(new Date(Date.now() + 50 * 86400000));
+  // Earlier isolated financial checks can advance the demo business clock.
+  const clockResponse = await page.request.get("/api/v1/business-time");
+  expect(clockResponse.ok()).toBe(true);
+  const businessNow = Date.parse((await clockResponse.json()).business_now);
+  const checkIn = isoDate(new Date(businessNow + 45 * 86400000));
+  const checkOut = isoDate(new Date(businessNow + 50 * 86400000));
   const calendarPath = `/host/calendar?listing=${listingId}&month=${checkIn.slice(0, 7)}`;
   await page.goto("/login");
   await page.getByLabel("Email address").fill(email);
@@ -125,10 +131,14 @@ test("host block excludes a stay, unblock restores it, public quote matches €7
   await capture(guest, "detail");
   await guest.reload();
   await expect(guest.locator(".quote-total")).toContainText("€769.50");
-  await expect(guest.getByLabel("Check in")).toHaveValue(checkIn);
+  await expect(
+    guest.getByRole("button", { name: "Check in", exact: true }),
+  ).toContainText(dateText(checkIn));
   await guest.getByRole("link", { name: "← Back to stays" }).click();
   await expect(guest).toHaveURL(new RegExp(`check_in=${checkIn}`));
-  await expect(guest.getByLabel("Check out")).toHaveValue(checkOut);
+  await expect(
+    guest.getByRole("button", { name: "Check out", exact: true }),
+  ).toContainText(dateText(checkOut));
   await guestContext.close();
 });
 
@@ -160,19 +170,60 @@ for (const scenario of [
       await route.fulfill({ response, json: body });
     });
     await page.goto(`/stays/${listingId}`);
-    const arrival = page.getByLabel("Check in", { exact: true });
-    const departure = page.getByLabel("Check out", { exact: true });
-    await expect(arrival).toHaveAttribute("min", scenario.min);
-    await arrival.fill("2027-01-17");
-    await departure.fill("2027-01-18");
-    await expect(departure).toHaveAttribute("min", "2027-01-18");
-    await arrival.fill("2027-01-18");
-    await expect(departure).toHaveValue("");
-    await expect(page.getByText(/Check-in changed/)).toBeVisible();
-    await arrival.fill("2000-01-01");
-    await departure.fill("2000-01-02");
-    await page.getByRole("button", { name: "Check price" }).click();
-    await expect(page.getByText(/Choose a later check-in date/)).toBeVisible();
+    const arrival = page.getByRole("button", { name: "Check in", exact: true });
+    const departure = page.getByRole("button", {
+      name: "Check out",
+      exact: true,
+    });
+    await arrival.click();
+    const previous = isoDate(
+      new Date(new Date(`${scenario.min}T12:00:00Z`).getTime() - 86400000),
+    );
+    await expect(await calendarDay(page, previous)).toBeDisabled();
+    await expect(await calendarDay(page, scenario.min)).toBeEnabled();
+    await page
+      .getByRole("button", { name: "Close dates", exact: true })
+      .click();
+    await chooseDateRange(page, "2027-01-17", "2027-01-18");
+    await page
+      .getByRole("button", { name: "Check price", exact: true })
+      .click();
+    await expect(page.locator(".quote-total")).toBeVisible();
+    await arrival.click();
+    await (await calendarDay(page, "2027-01-18")).click();
+    // Changing check-in clears checkout only in the draft. It cannot commit an
+    // incomplete range or silently reuse the old checkout/quote.
+    await expect(
+      page
+        .getByRole("dialog", { name: "Choose travel dates" })
+        .getByRole("status"),
+    ).toHaveText("Choose your exact dates");
+    await page
+      .getByRole("button", { name: "Apply dates", exact: true })
+      .click();
+    await expect(
+      page.getByText("Choose both a check-in and a check-out date.", {
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(departure).toContainText(dateText("2027-01-18"));
+    await (await calendarDay(page, "2027-01-19")).click();
+    await page
+      .getByRole("button", { name: "Apply dates", exact: true })
+      .click();
+    await expect(arrival).toContainText(dateText("2027-01-18"));
+    await expect(departure).toContainText(dateText("2027-01-19"));
+    await expect(page.locator(".quote-total")).toHaveCount(0);
+    const past = await page.request.post("/api/v1/booking-quotes", {
+      data: {
+        listing_id: listingId,
+        check_in: "2000-01-01",
+        check_out: "2000-01-02",
+        guests: 1,
+      },
+    });
+    expect(past.status()).toBe(422);
+    expect((await past.json()).error.field_errors.check_in).toBeTruthy();
   });
 }
 
@@ -199,8 +250,7 @@ test("edited past URL dates show real API validation and permit correction", asy
   expect((await response.json()).error.field_errors.check_in).toBeTruthy();
   const arrival = isoDate(new Date(Date.now() + 60 * 86400000));
   const departure = isoDate(new Date(Date.now() + 61 * 86400000));
-  await page.getByLabel("Check in", { exact: true }).fill(arrival);
-  await page.getByLabel("Check out", { exact: true }).fill(departure);
+  await chooseDateRange(page, arrival, departure);
   await page.getByRole("button", { name: "Check price" }).click();
   await expect(page.locator(".quote-total")).toBeVisible();
 });
@@ -222,10 +272,10 @@ test("cross-timezone search picker uses a conservative date and backend errors r
     }),
   );
   await page.goto("/stays");
-  await expect(page.getByLabel("Check in", { exact: true })).toHaveAttribute(
-    "min",
-    "2027-01-14",
-  );
+  await page.getByRole("button", { name: "Check in", exact: true }).click();
+  await expect(await calendarDay(page, "2027-01-13")).toBeDisabled();
+  await expect(await calendarDay(page, "2027-01-14")).toBeEnabled();
+  await page.getByRole("button", { name: "Close dates", exact: true }).click();
   await page.goto(
     "/stays?destination=Lisbon&check_in=2000-01-01&check_out=2000-01-02&guests=1",
   );
@@ -265,11 +315,18 @@ test("quote field feedback survives a server rejection and guests can correct da
     "Choose a later date before scheduled check-in.",
   );
   await page.unroute("**/api/v1/booking-quotes");
-  await page.getByLabel("Check in", { exact: true }).fill(departure);
-  await expect(page.getByLabel("Check out", { exact: true })).toHaveValue("");
-  await page
-    .getByLabel("Check out", { exact: true })
-    .fill(isoDate(new Date(Date.now() + 67 * 86400000)));
+  await page.getByRole("button", { name: "Check in", exact: true }).click();
+  await (await calendarDay(page, departure)).click();
+  await page.getByRole("button", { name: "Apply dates", exact: true }).click();
+  await expect(
+    page.getByText("Choose both a check-in and a check-out date.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await (
+    await calendarDay(page, isoDate(new Date(Date.now() + 67 * 86400000)))
+  ).click();
+  await page.getByRole("button", { name: "Apply dates", exact: true }).click();
   await page.getByRole("button", { name: "Check price" }).click();
   await expect(page.locator(".quote-total")).toBeVisible();
 });

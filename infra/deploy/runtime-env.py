@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 import subprocess
 from pathlib import Path
 from urllib.parse import quote
@@ -50,6 +51,18 @@ values = {
     "S3_BUCKET": config["photos"],
     "AWS_DEFAULT_REGION": "us-east-1",
 }
+# Only this allowlisted provider configuration reaches the backend. Never pass
+# application-secret fields wholesale to frontend build or runtime configuration.
+provider_key = app.get("GEOAPIFY_API_KEY", "")
+if not isinstance(provider_key, str) or len(provider_key) > 512:
+    raise ValueError("Invalid GEOAPIFY_API_KEY configuration")
+budget = app.get("GEOAPIFY_DAILY_BUDGET", 2800)
+if isinstance(budget, bool) or not re.fullmatch(r"[0-9]{1,4}", str(budget)):
+    raise ValueError("Invalid GEOAPIFY_DAILY_BUDGET configuration")
+if not 1 <= int(budget) <= 3000:
+    raise ValueError("Invalid GEOAPIFY_DAILY_BUDGET configuration")
+values["GEOAPIFY_API_KEY"] = provider_key
+values["GEOAPIFY_DAILY_BUDGET"] = str(int(budget))
 # Explicit seeding may use these credentials; normal deployment never seeds.
 for key, value in app.items():
     if key.startswith("SEED_"):
@@ -59,5 +72,6 @@ for key, value in values.items():
         raise ValueError(f"Invalid multiline runtime value: {key}")
 path = root / "runtime.env"
 fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+os.fchmod(fd, 0o600)
 with os.fdopen(fd, "w") as stream:
     stream.write("".join(f"{key}={value}\n" for key, value in values.items()))

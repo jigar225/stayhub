@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router";
+import { TripPhoto } from "./TripPhoto";
 import { CancellationActions } from "./Cancellation";
 import { Button, EmptyState, ErrorState } from "../components/ui";
 import { formatDate } from "../discovery/dates";
@@ -36,8 +37,13 @@ export function Status({ reservation }: { reservation: Reservation }) {
 }
 export function TripCard({ reservation: r }: { reservation: Reservation }) {
   return (
-    <article className="card trip-card">
-      <div>
+    <article className="card trip-card trip-card-with-photo">
+      <TripPhoto
+        key={r.id}
+        reservationId={r.id}
+        title={r.listing_snapshot.title}
+      />
+      <div className="trip-card-content">
         <Status reservation={r} />
         <h2>{r.listing_snapshot.title}</h2>
         <p>{r.listing_snapshot.destination}</p>
@@ -49,8 +55,13 @@ export function TripCard({ reservation: r }: { reservation: Reservation }) {
           Reservation <code>{r.code}</code>
         </p>
       </div>
-      <div>
+      <div className="trip-card-summary">
         <strong>{formatEUR(r.price.total_minor)}</strong>
+        <span>
+          Original total · {r.price.nights}{" "}
+          {r.price.nights === 1 ? "night" : "nights"}
+        </span>
+        {r.refund && <span>Refunded {formatEUR(r.refund.amount_minor)}</span>}
         <Link className="button secondary" to={`/trips/${r.id}`}>
           View reservation
         </Link>

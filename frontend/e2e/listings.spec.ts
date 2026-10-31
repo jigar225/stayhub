@@ -1,6 +1,9 @@
 import { test, expect, type Page } from "@playwright/test";
 import { randomBytes } from "node:crypto";
 import { mkdir } from "node:fs/promises";
+const evidenceDir = process.env.SMOKE_EVIDENCE_DIR ?? "evidence";
+const storageOrigin =
+  process.env.SMOKE_STORAGE_ORIGIN ?? "http://localhost:9000";
 async function screenshot(page: Page, name: string) {
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 });
@@ -28,7 +31,7 @@ async function screenshot(page: Page, name: string) {
         .toBe(true);
     }
     await page.screenshot({
-      path: `evidence/m2-${name}-${width}.png`,
+      path: `${evidenceDir}/m2-${name}-${width}.png`,
       fullPage: true,
     });
     expect(
@@ -80,7 +83,7 @@ test("real draft, direct upload, recovery, publication, preview and unlisting", 
   page,
 }) => {
   test.setTimeout(180000);
-  await mkdir("evidence", { recursive: true });
+  await mkdir(evidenceDir, { recursive: true });
   const email = `m2-browser-${Date.now()}-${randomBytes(3).toString("hex")}@example.com`;
   const password = randomBytes(18).toString("base64url");
   await page.goto("/signup");
@@ -197,9 +200,7 @@ test("real draft, direct upload, recovery, publication, preview and unlisting", 
     page.getByText("Your listing is published.", { exact: true }),
   ).toBeVisible();
   expect(putRequests).toHaveLength(5);
-  expect(
-    putRequests.every((origin) => origin === "http://localhost:9000"),
-  ).toBe(true);
+  expect(putRequests.every((origin) => origin === storageOrigin)).toBe(true);
   await page
     .getByRole("link", { name: "Preview listing", exact: true })
     .click();

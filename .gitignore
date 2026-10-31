@@ -53,3 +53,15 @@ crash.*.log
 /scripts/m61-ledger.py
 /scripts/m7-smoke.py
 /scripts/run-checks.py
+
+# Local review runtimes, runners and milestone visual evidence (keep specs).
+/compose.m8-review.yaml
+/compose.m9a-review.yaml
+/scripts/m8-smoke.py
+/scripts/m8-visual.mjs
+/scripts/m8-corrections-visual.mjs
+/scripts/m9a-smoke.py
+/frontend/playwright.m8.config.ts
+/frontend/playwright.m9a.config.ts
+/frontend/e2e/m8-visual-snapshots/
+/frontend/e2e/m8-corrections-snapshots/

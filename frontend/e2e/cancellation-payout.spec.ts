@@ -2,10 +2,11 @@ import { test, expect, type Page } from "@playwright/test";
 import { randomBytes } from "node:crypto";
 import { readFile, mkdir, writeFile } from "node:fs/promises";
 import type { Reservation } from "../src/booking/api";
+const evidenceDir = process.env.SMOKE_EVIDENCE_DIR ?? "evidence";
 const origin = process.env.SMOKE_BASE_URL ?? "";
 const iso = (date: Date) => date.toISOString().slice(0, 10);
 async function capture(page: Page, name: string) {
-  await mkdir("evidence", { recursive: true });
+  await mkdir(evidenceDir, { recursive: true });
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 });
     if (
@@ -23,7 +24,7 @@ async function capture(page: Page, name: string) {
       ),
     ).toBe(true);
     await page.screenshot({
-      path: `evidence/m5-${name}-${width}.png`,
+      path: `${evidenceDir}/m5-${name}-${width}.png`,
       fullPage: true,
     });
   }
@@ -177,9 +178,14 @@ test("isolated demo cancellation refunds, host cancellation, expiry, lifecycle, 
   browser,
 }) => {
   test.setTimeout(240000);
-  if (!origin || new URL(origin).port !== "5183")
+  if (
+    !origin ||
+    !["localhost", "127.0.0.1"].includes(new URL(origin).hostname) ||
+    (new URL(origin).port !== "5183" &&
+      process.env.SMOKE_ISOLATED_ORIGIN !== origin)
+  )
     throw new Error(
-      "This clock-advancing suite requires the separate review stack SMOKE_BASE_URL=http://localhost:5183; shared dev clock is forbidden.",
+      "This clock-advancing suite requires the separate 5183 review stack or an explicitly verified local SMOKE_ISOLATED_ORIGIN; shared dev clock is forbidden.",
     );
   const guestToken = await signup(page);
   const hostContext = await browser.newContext();
@@ -321,9 +327,9 @@ test("isolated demo cancellation refunds, host cancellation, expiry, lifecycle, 
   const finalClock = await admin.request.get("/api/v1/admin/demo/clock", {
     headers: { Authorization: `Bearer ${adminToken}` },
   });
-  await mkdir("evidence", { recursive: true });
+  await mkdir(evidenceDir, { recursive: true });
   await writeFile(
-    "evidence/m5-browser-records.json",
+    `${evidenceDir}/m5-browser-records.json`,
     JSON.stringify(
       {
         baseline_clock: baseline,

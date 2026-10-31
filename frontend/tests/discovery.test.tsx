@@ -30,6 +30,7 @@ vi.mock("../src/api/businessTime", () => ({
   refreshBusinessTime: vi.fn(),
 }));
 const mocks = vi.hoisted(() => ({
+  availability: vi.fn(),
   search: vi.fn(),
   photos: vi.fn(),
   detail: vi.fn(),
@@ -100,6 +101,7 @@ const quote: Quote = {
 };
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.availability.mockResolvedValue({ unavailable: [] });
   mocks.search.mockResolvedValue({ items: [summary], next_cursor: null });
   mocks.detail.mockResolvedValue({ listing: detail });
   mocks.quote.mockResolvedValue({ quote });
@@ -339,7 +341,7 @@ it("uses listing-local scheduling and exact instant/request boundaries for selec
     "2027-01-14",
   );
 });
-it("restricts pickers, rejects typed dates and asks for checkout again after check-in changes", async () => {
+it("restricts the controlled calendar and requires a new checkout after check-in changes", async () => {
   const submit = vi.fn();
   render(
     <MemoryRouter>
@@ -359,22 +361,75 @@ it("restricts pickers, rejects typed dates and asks for checkout again after che
       />
     </MemoryRouter>,
   );
-  expect(screen.getByLabelText("Check out")).toHaveAttribute(
-    "min",
-    "2027-01-16",
+  await userEvent.click(screen.getByRole("button", { name: "Check in" }));
+  await userEvent.click(
+    screen.getByRole("button", { name: "Saturday, 16 January 2027" }),
   );
-  fireEvent.change(screen.getByLabelText("Check in"), {
-    target: { value: "2027-01-16" },
-  });
-  expect(screen.getByLabelText("Check out")).toHaveValue("");
-  expect(screen.getByText(/Check-in changed/)).toBeVisible();
-  fireEvent.change(screen.getByLabelText("Check in"), {
-    target: { value: "2000-01-01" },
-  });
-  fireEvent.change(screen.getByLabelText("Check out"), {
-    target: { value: "2000-01-02" },
-  });
-  await userEvent.click(screen.getByRole("button", { name: "Search stays" }));
-  expect(screen.getByText(/Choose a later check-in date/)).toBeVisible();
+  expect(screen.getByText("Select check-out date")).toBeVisible();
+  await userEvent.click(screen.getByRole("button", { name: "Apply dates" }));
+  expect(screen.getByRole("alert")).toHaveTextContent("Choose both");
   expect(submit).not.toHaveBeenCalled();
+  await userEvent.click(
+    screen.getByRole("button", { name: "Sunday, 17 January 2027" }),
+  );
+  await userEvent.click(screen.getByRole("button", { name: "Apply dates" }));
+  await userEvent.click(screen.getByRole("button", { name: "Search stays" }));
+  expect(submit).toHaveBeenCalledWith({
+    destination: "",
+    check_in: "2027-01-16",
+    check_out: "2027-01-17",
+    guests: "1",
+  });
+  expect(
+    validateSearch(
+      {
+        destination: "",
+        check_in: "2000-01-01",
+        check_out: "2000-01-02",
+        guests: "1",
+      },
+      true,
+      "2026-10-30",
+    ),
+  ).toHaveProperty("check_in");
+});
+
+it("keeps edited guest count when dates are checked from visible availability", async () => {
+  render(
+    <MemoryRouter
+      initialEntries={[
+        "/stays/stay?check_in=2026-11-15&check_out=2026-11-20&guests=1",
+      ]}
+    >
+      <Routes>
+        <Route path="/stays/:id" element={<StayDetail />} />
+      </Routes>
+    </MemoryRouter>,
+  );
+  await screen.findByRole("link", { name: "Reserve" });
+  const guests = screen.getByLabelText("Guests");
+  fireEvent.change(guests, { target: { value: "2" } });
+  expect(screen.queryByRole("link", { name: "Reserve" })).toBeNull();
+  const available = screen.getByRole("button", {
+    name: "22 Nov 2026, Available night",
+  });
+  await userEvent.click(available);
+  await userEvent.click(
+    screen.getByRole("button", { name: "24 Nov 2026, Available night" }),
+  );
+  await userEvent.click(
+    screen.getByRole("button", { name: "Check these dates" }),
+  );
+  await waitFor(() =>
+    expect(mocks.quote).toHaveBeenLastCalledWith("stay", {
+      check_in: "2026-11-22",
+      check_out: "2026-11-24",
+      guests: 2,
+    }),
+  );
+  expect(screen.getByLabelText("Guests")).toHaveValue(2);
+  expect(await screen.findByRole("link", { name: "Reserve" })).toHaveAttribute(
+    "href",
+    expect.stringContaining("guests=2"),
+  );
 });

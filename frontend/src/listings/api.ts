@@ -11,6 +11,8 @@ export interface Photo {
 export interface DraftFields {
   property_type: "apartment" | "house" | "room" | null;
   address: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   destination: string | null;
   timezone: string | null;
   capacity: number | null;

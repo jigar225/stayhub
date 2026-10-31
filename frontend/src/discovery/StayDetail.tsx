@@ -8,7 +8,9 @@ import {
   type Quote,
   type PriceBreakdown,
 } from "./api";
+import { PublicLocation } from "../location/PublicLocation";
 import { PublicPhotos } from "./PublicPhotos";
+import { StayAvailability } from "./StayAvailability";
 import { SearchForm } from "./SearchForm";
 import {
   searchValues,
@@ -68,6 +70,9 @@ export function StayDetail() {
   const [quoteBusy, setQuoteBusy] = useState(false);
   const quoteGeneration = useRef(0);
   const values = searchValues(params);
+  const bookingDraft = useRef<{ query: string; values: SearchValues } | null>(
+    null,
+  );
   const [quoteDirty, setQuoteDirty] = useState(false);
   useEffect(() => {
     if (!id) return;
@@ -130,7 +135,19 @@ export function StayDetail() {
     };
   }, [id, query]);
   async function check(next: SearchValues) {
-    const nextQuery = searchQuery(next);
+    const committed = new URLSearchParams(params);
+    for (const key of [
+      "destination",
+      "check_in",
+      "check_out",
+      "guests",
+      "cursor",
+    ])
+      committed.delete(key);
+    new URLSearchParams(searchQuery(next)).forEach((value, key) =>
+      committed.set(key, value),
+    );
+    const nextQuery = committed.toString();
     if (nextQuery !== query) {
       setParams(new URLSearchParams(nextQuery));
       return;
@@ -268,9 +285,24 @@ export function StayDetail() {
               included in a future booking.
             </p>
           </section>
+          <StayAvailability
+            key={`${listing.id}-${query}`}
+            listing={listing}
+            checkIn={values.check_in}
+            checkOut={values.check_out}
+            onApply={(range) =>
+              void check({
+                ...(bookingDraft.current?.query === query
+                  ? bookingDraft.current.values
+                  : values),
+                ...range,
+              })
+            }
+          />
           <section className="preview-section">
             <h2>Where you’ll be</h2>
             <p>{listing.destination}</p>
+            <PublicLocation key={listing.id} listingId={listing.id} />
           </section>
         </div>
         <aside className="public-quote card">
@@ -285,7 +317,8 @@ export function StayDetail() {
             schedule={listing}
             onSubmit={(next) => void check(next)}
             busy={quoteBusy}
-            onDirty={() => {
+            onDirty={(next) => {
+              bookingDraft.current = { query, values: next };
               quoteGeneration.current++;
               setQuote(null);
               setQuoteError(null);

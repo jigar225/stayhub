@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
+import { useBusinessTime } from "../api/businessTime";
+import { arrivingToday, arrivalTime } from "./arrivals";
 import { ApiError } from "../api/client";
 import { Button, EmptyState, ErrorState } from "../components/ui";
 import { formatDate } from "../discovery/dates";
@@ -154,6 +156,7 @@ function RequestCard({
   );
 }
 export function HostToday() {
+  const clock = useBusinessTime();
   const [data, setData] = useState<TodayData | null>(null);
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
@@ -205,6 +208,18 @@ export function HostToday() {
       if (request?.active) setBusy(false);
     }
   }
+  const arrivals =
+    clock.now && !clock.error
+      ? arrivingToday(data?.upcoming ?? [], clock.now)
+      : null;
+  const shown =
+    tab === "Arriving today"
+      ? (arrivals ?? [])
+      : tab === "Upcoming"
+        ? (data?.upcoming ?? [])
+        : tab === "Currently hosting"
+          ? (data?.hosting ?? [])
+          : (data?.checkouts ?? []);
   return (
     <main className="host-content">
       <div className="page-heading">
@@ -239,9 +254,45 @@ export function HostToday() {
                 refund.
               </div>
             )}
+            <section
+              className="host-arrivals-summary"
+              aria-label="Today's arrivals"
+            >
+              <div>
+                <h2>Arriving today</h2>
+                <p>
+                  {arrivals
+                    ? `${arrivals.length} confirmed ${arrivals.length === 1 ? "stay" : "stays"} in the loaded reservations. Dates use each stay’s local timezone.`
+                    : "Checking the business date for arrivals…"}
+                </p>
+              </div>
+              {clock.error ? (
+                <div>
+                  <p role="status">
+                    Could not check today’s arrivals. Other reservations remain
+                    available.
+                  </p>
+                  <Button
+                    variant="secondary"
+                    onClick={() => void clock.refresh()}
+                  >
+                    Retry arrivals date
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  variant="secondary"
+                  disabled={!arrivals}
+                  onClick={() => setTab("Arriving today")}
+                >
+                  View arrivals
+                </Button>
+              )}
+            </section>
             <nav className="trip-tabs" aria-label="Reservation categories">
               {[
                 "Requests",
+                "Arriving today",
                 "Upcoming",
                 "Currently hosting",
                 "Checking out",
@@ -254,11 +305,15 @@ export function HostToday() {
                   {value}
                   {value === "Requests"
                     ? ` (${data.pending.length} loaded)`
-                    : value === "Upcoming"
-                      ? ` (${data.upcoming.length} loaded)`
-                      : value === "Currently hosting"
-                        ? ` (${data.hosting.length} loaded)`
-                        : ` (${data.checkouts.length} loaded)`}
+                    : value === "Arriving today"
+                      ? arrivals
+                        ? ` (${arrivals.length} loaded)`
+                        : " (date unavailable)"
+                      : value === "Upcoming"
+                        ? ` (${data.upcoming.length} loaded)`
+                        : value === "Currently hosting"
+                          ? ` (${data.hosting.length} loaded)`
+                          : ` (${data.checkouts.length} loaded)`}
                 </Button>
               ))}
             </nav>
@@ -289,19 +344,14 @@ export function HostToday() {
                   request stay.
                 </EmptyState>
               )
-            ) : (tab === "Upcoming"
-                ? data.upcoming
-                : tab === "Currently hosting"
-                  ? data.hosting
-                  : data.checkouts
-              ).length ? (
+            ) : tab === "Arriving today" && !arrivals ? (
+              <p role="status">
+                Arrivals need a current business date. Use Retry arrivals date
+                if the clock is unavailable.
+              </p>
+            ) : shown.length ? (
               <div className="trip-list">
-                {(tab === "Upcoming"
-                  ? data.upcoming
-                  : tab === "Currently hosting"
-                    ? data.hosting
-                    : data.checkouts
-                ).map((r) => (
+                {shown.map((r) => (
                   <article className="card trip-card" key={r.id}>
                     <div>
                       <Status reservation={r} />
@@ -309,6 +359,12 @@ export function HostToday() {
                       <p>
                         {formatDate(r.check_in)} – {formatDate(r.check_out)} ·{" "}
                         {r.guests} guests
+                      </p>
+                      <p className="host-arrival-time">
+                        {tab === "Arriving today"
+                          ? "Arriving today · "
+                          : "Check-in · "}
+                        {arrivalTime(r)} ({r.timezone})
                       </p>
                       <code>{r.code}</code>
                     </div>

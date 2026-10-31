@@ -11,6 +11,9 @@ export function StayIcon({ name }: { name: string }) {
       "M12 2v3m0 14v3M2 12h3m14 0h3M5 5l2 2m10 10 2 2M5 19l2-2M17 7l2-2M16 12a4 4 0 1 0-8 0 4 4 0 0 0 8 0",
     "off-grid": "m12 3-10 18h20ZM12 3v18M7 21l5-18 5 18",
     historic: "m2 8 10-5 10 5ZM4 11v8m5-8v8m6-8v8m5-8v8M2 22h20",
+    calendar:
+      "M7 3v4m10-4v4M3 10h18M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z",
+    filters: "M4 7h16M7 12h10M10 17h4",
     search: "M16 10a6 6 0 1 0-12 0 6 6 0 0 0 12 0Zm-2 4 6 6",
   };
   return (

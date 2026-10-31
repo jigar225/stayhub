@@ -1,8 +1,11 @@
 import { test, expect, type Page } from "@playwright/test";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { chooseDateRange } from "./date-helpers";
 
-const evidence = path.resolve("../evidence/m7");
+const evidence = path.resolve(
+  process.env.VISUAL_EVIDENCE_DIR ?? "../evidence/m7",
+);
 const titles = [
   "Azulejo Loft in Alfama",
   "Riverside studio",
@@ -194,8 +197,7 @@ test("Who remains keyboard usable and submits validated guests with the category
   await page.goto("/?category=design");
   await ready(page);
   await page.getByLabel("Where", { exact: true }).fill("Lisbon");
-  await page.getByLabel("Check in", { exact: true }).fill("2027-02-01");
-  await page.getByLabel("Check out", { exact: true }).fill("2027-02-04");
+  await chooseDateRange(page, "2027-02-01", "2027-02-04");
   const guests = page.locator('[name="guests"]');
   await guests.focus();
   await guests.fill("3");

@@ -1,11 +1,11 @@
-import { useState, type FormEvent } from "react";
+import { Fragment, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router";
 import { useBusinessTime } from "../api/businessTime";
+import { DateRangePicker } from "./DateRangePicker";
 import { StayIcon } from "./StayIcon";
 import { Button } from "../components/ui";
 import {
   earliestCheckIn,
-  addDays,
   validDate,
   searchQuery,
   validateSearch,
@@ -17,6 +17,7 @@ export function SearchForm({
   compact = false,
   joined = false,
   category = "",
+  preserveQuery = "",
   onSubmit,
   busy = false,
   requireDates = false,
@@ -27,10 +28,11 @@ export function SearchForm({
   compact?: boolean;
   joined?: boolean;
   category?: string;
+  preserveQuery?: string;
   onSubmit?: (values: SearchValues) => void;
   busy?: boolean;
   requireDates?: boolean;
-  onDirty?: () => void;
+  onDirty?: (values: SearchValues) => void;
   schedule?: StaySchedule;
 }) {
   const navigate = useNavigate();
@@ -68,8 +70,19 @@ export function SearchForm({
     }
     if (onSubmit) onSubmit(values);
     else {
-      const query = new URLSearchParams(searchQuery(values));
-      if (category) query.set("category", category);
+      const query = new URLSearchParams(preserveQuery);
+      for (const key of [
+        "destination",
+        "check_in",
+        "check_out",
+        "guests",
+        "cursor",
+      ])
+        query.delete(key);
+      new URLSearchParams(searchQuery(values)).forEach((value, key) =>
+        query.set(key, value),
+      );
+      if (category && !query.has("category")) query.set("category", category);
       navigate(`/stays?${query}`);
     }
   }
@@ -99,81 +112,74 @@ export function SearchForm({
             type: "text",
             placeholder: "City or destination",
           },
-          { key: "check_in", label: "Check in", type: "date" },
-          { key: "check_out", label: "Check out", type: "date" },
           { key: "guests", label: joined ? "Who" : "Guests", type: "number" },
         ] as const
       ).map((field) => (
-        <div className={`search-field search-${field.key}`} key={field.key}>
-          {field.key === "destination" && compact ? null : (
-            <>
-              <label htmlFor={`search-${field.key}`}>{field.label}</label>
-              <input
-                id={`search-${field.key}`}
-                name={field.key}
-                type={field.type}
-                value={values[field.key]}
-                placeholder={
-                  "placeholder" in field ? field.placeholder : undefined
-                }
-                onChange={(event) => {
-                  onDirty?.();
-                  const value = event.target.value;
-                  const clearCheckout =
-                    field.key === "check_in" &&
-                    !!values.check_out &&
-                    values.check_out <= value;
-                  setValues({
-                    ...values,
-                    [field.key]: value,
-                    ...(clearCheckout ? { check_out: "" } : {}),
-                  });
-                  setErrors({
-                    ...errors,
-                    [field.key]: "",
-                    ...(clearCheckout
-                      ? {
-                          check_out:
-                            "Check-in changed. Select a new check-out date after check-in.",
-                        }
-                      : {}),
-                  });
-                }}
-                min={
-                  field.key === "guests"
-                    ? 1
-                    : field.key === "check_in"
-                      ? minimum
-                      : field.key === "check_out"
-                        ? validDate(values.check_in) || minimum
-                          ? addDays(
-                              validDate(values.check_in) &&
-                                (!minimum || values.check_in >= minimum)
-                                ? values.check_in
-                                : (minimum ?? ""),
-                              1,
-                            )
-                          : undefined
-                        : undefined
-                }
-                max={field.key === "guests" ? 30 : undefined}
-                maxLength={field.key === "destination" ? 100 : undefined}
-                aria-invalid={!!displayedErrors[field.key]}
-                aria-describedby={
-                  displayedErrors[field.key]
-                    ? `search-${field.key}-error`
-                    : undefined
-                }
-                disabled={busy}
-              />
-              {displayedErrors[field.key] && (
-                <span className="field-error" id={`search-${field.key}-error`}>
-                  {displayedErrors[field.key]}
-                </span>
-              )}
-            </>
+        <Fragment key={field.key}>
+          {field.key === "guests" && (
+            <DateRangePicker
+              checkIn={values.check_in}
+              checkOut={values.check_out}
+              minimum={minimum}
+              disabled={busy}
+              requireDates={requireDates}
+              errors={displayedErrors}
+              onApply={(range) => {
+                if (
+                  range.check_in !== values.check_in ||
+                  range.check_out !== values.check_out
+                )
+                  onDirty?.({ ...values, ...range });
+                setValues((current) => ({ ...current, ...range }));
+                setErrors((current) => ({
+                  ...current,
+                  check_in: "",
+                  check_out: "",
+                }));
+              }}
+            />
           )}
-        </div>
+          <div className={`search-field search-${field.key}`}>
+            {field.key === "destination" && compact ? null : (
+              <>
+                <label htmlFor={`search-${field.key}`}>{field.label}</label>
+                <input
+                  id={`search-${field.key}`}
+                  name={field.key}
+                  type={field.type}
+                  value={values[field.key]}
+                  placeholder={
+                    "placeholder" in field ? field.placeholder : undefined
+                  }
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    onDirty?.({ ...values, [field.key]: value });
+                    setValues({ ...values, [field.key]: value });
+                    setErrors({ ...errors, [field.key]: "" });
+                  }}
+                  min={field.key === "guests" ? 1 : undefined}
+                  max={field.key === "guests" ? 30 : undefined}
+                  maxLength={field.key === "destination" ? 100 : undefined}
+                  aria-invalid={!!displayedErrors[field.key]}
+                  aria-describedby={
+                    displayedErrors[field.key]
+                      ? `search-${field.key}-error`
+                      : undefined
+                  }
+                  disabled={busy}
+                />
+                {displayedErrors[field.key] && (
+                  <span
+                    className="field-error"
+                    id={`search-${field.key}-error`}
+                  >
+                    {displayedErrors[field.key]}
+                  </span>
+                )}
+              </>
+            )}
+          </div>
+        </Fragment>
       ))}
       <Button
         type="submit"

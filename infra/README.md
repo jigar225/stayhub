@@ -392,3 +392,33 @@ assertion was corrected to compare resolved paths; the final 17-test suite
 passed. The unchanged application/M7 files matched their recorded hashes.
 Nothing was committed, pushed, dispatched or deployed. Actual GitHub execution
 and the installed-receiver update remain pending operator action.
+
+### Optional server-only address autocomplete
+
+Geoapify autocomplete is optional. Hosts can enter an address and manually
+confirm a map pin without a provider key. Set `GEOAPIFY_API_KEY` only in the
+backend environment/application secret. Never use `VITE_*`, frontend build
+arguments, command-line key values, source files, logs, or chat to supply it.
+
+For local development, privately fill `GEOAPIFY_API_KEY` in the ignored `.env`
+(or the selected isolated review env file). `GEOAPIFY_DAILY_BUDGET` defaults to
+2800 attempted provider calls per UTC day and accepts 1–3000. Failed calls count;
+the same key's use outside this installation needs its own quota headroom.
+
+For a future authorized deployment, an operator can run
+`python3 infra/deploy/configure-geoapify-secret.py` from the repository root.
+It uses the existing `stayhub` AWS profile and Terraform `release_config`, reads
+the initialized application secret, prompts for the key privately, and preserves
+JWT, seed credentials and other fields. A blank key leaves the secret unchanged.
+The optional budget is also prompted; AWS input uses a mode-0600 temporary file
+and captured diagnostics. This command updates a secret only: it does not deploy,
+restart services or seed data. Do not run it as part of source-only review.
+
+`infra/deploy/runtime-env.py` allowlists these two application-secret fields into
+the root-only backend `runtime.env`; absent key becomes empty and absent budget
+becomes 2800. Existing deployment then consumes that file for API/worker only.
+After an explicitly authorized release/restart, verify autocomplete once using a
+host's explicit typed search. Unit/browser suites must keep using a mocked
+provider boundary and do not count as live-provider acceptance. Missing private
+credentials block only that live check. The map uses OpenFreeMap independently;
+public listing locations remain approximate and owner coordinates remain private.

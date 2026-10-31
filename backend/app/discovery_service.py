@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from app import business_time, pricing, storage
 from app.categories import StayCategory
 from app.date_rules import invalid_date, read_range, stay_range
+from app.discovery_filters import BrowseFilters
 from app.discovery_schemas import (
     AvailabilityResponse,
     PublicDetail,
@@ -104,6 +105,7 @@ def browse(
     limit: int = 20,
     cursor: UUID | None = None,
     category: StayCategory | None = None,
+    filters: BrowseFilters | None = None,
 ) -> PublicListings:
     if (check_in is None) != (check_out is None):
         raise invalid_date("Supply both check-in and checkout dates.", "check_out")
@@ -115,6 +117,7 @@ def browse(
             Listing.status == "published",
             Listing.capacity >= guests,
         ]
+        criteria.extend((filters or BrowseFilters()).predicates())
         if category is not None:
             criteria.append(literal(category) == func.any(Listing.categories))
         if destination.strip():

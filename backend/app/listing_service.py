@@ -81,7 +81,10 @@ def _verified_photos(listing: Listing) -> list[ListingPhoto]:
 
 
 def _listing_output(listing: Listing) -> ListingOutput:
-    fields: dict[str, Any] = {field: getattr(listing, field) for field in DRAFT_FIELDS}
+    fields: dict[str, Any] = {
+        field: getattr(listing, field)
+        for field in [*DRAFT_FIELDS, "latitude", "longitude"]
+    }
     return ListingOutput(
         **fields,
         id=listing.id,
@@ -302,6 +305,12 @@ def update_listing(
             guard()
         _check_version(listing, body.version)
         changes = body.model_dump(exclude_unset=True, exclude={"version"})
+        if (
+            "address" in changes
+            and changes["address"] != listing.address
+            and "latitude" not in changes
+        ):
+            changes.update(latitude=None, longitude=None)
         if "policy_id" in changes:
             _validate_policy(db, changes["policy_id"])
         for field, value in changes.items():
