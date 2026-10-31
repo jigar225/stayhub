@@ -3,6 +3,7 @@ import { Link, Outlet, useNavigate } from "react-router";
 import { logout, startHosting } from "../api/client";
 import { useSession } from "../auth/useSession";
 import { Brand, Button, Dialog, ErrorState } from "./ui";
+import { NotificationBell } from "../notifications/Notifications";
 export function GuestShell() {
   const { user } = useSession();
   const navigate = useNavigate();
@@ -61,6 +62,7 @@ export function GuestShell() {
                 </Button>
               )}
               {user.roles.includes("admin") && <Link to="/admin">Admin</Link>}
+              <NotificationBell />
               <div className="menu-anchor">
                 <Button
                   variant="secondary"
@@ -78,6 +80,9 @@ export function GuestShell() {
                     <span className="menu-name">{user.name}</span>
                     <Link onClick={() => setMenu(false)} to="/trips">
                       Trips
+                    </Link>
+                    <Link onClick={() => setMenu(false)} to="/messages">
+                      Messages
                     </Link>
                     <Link onClick={() => setMenu(false)} to="/profile">
                       Profile

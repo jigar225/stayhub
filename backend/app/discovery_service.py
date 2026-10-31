@@ -12,6 +12,7 @@ from app import business_time, pricing, storage
 from app.categories import StayCategory
 from app.date_rules import invalid_date, read_range, stay_range
 from app.discovery_filters import BrowseFilters
+from app.discovery_map import MAP_LIMIT, Viewport, public_coordinates
 from app.discovery_schemas import (
     AvailabilityResponse,
     PublicDetail,
@@ -19,6 +20,7 @@ from app.discovery_schemas import (
     PublicListings,
     PublicPhoto,
     PublicPhotos,
+    PublicPoint,
     PublicSummary,
     QuoteInput,
     QuoteResponse,
@@ -74,8 +76,10 @@ def _summary(
     demo: bool,
     check_in: date | None = None,
     check_out: date | None = None,
+    location: PublicPoint | None = None,
 ) -> PublicSummary:
     return PublicSummary(
+        location=location,
         id=listing.id,
         title=cast(str, listing.title),
         destination=cast(str, listing.destination),
@@ -106,11 +110,16 @@ def browse(
     cursor: UUID | None = None,
     category: StayCategory | None = None,
     filters: BrowseFilters | None = None,
+    *,
+    map_view: bool = False,
+    viewport: Viewport | None = None,
 ) -> PublicListings:
     if (check_in is None) != (check_out is None):
         raise invalid_date("Supply both check-in and checkout dates.", "check_out")
     if check_in is not None and check_out is not None:
         stay_range(check_in, check_out)
+    if map_view:
+        limit = min(limit, MAP_LIMIT)
     with db.begin():
         now = business_time.at(db)
         criteria: list[Any] = [
@@ -120,7 +129,11 @@ def browse(
         criteria.extend((filters or BrowseFilters()).predicates())
         if category is not None:
             criteria.append(literal(category) == func.any(Listing.categories))
-        if destination.strip():
+        if map_view:
+            criteria += [Listing.latitude.is_not(None), Listing.longitude.is_not(None)]
+        if viewport:
+            criteria.extend(viewport.predicates())
+        if destination.strip() and viewport is None:
             criteria.append(
                 Listing.destination.icontains(destination.strip(), autoescape=True)
             )
@@ -155,7 +168,19 @@ def browse(
         query = select(Listing).where(*criteria).order_by(Listing.id).limit(limit + 1)
         if cursor:
             query = query.where(Listing.id > cursor)
-        rows = list(db.scalars(query))
+        if map_view:
+            latitude, longitude = public_coordinates()
+            projected = list(db.execute(query.add_columns(latitude, longitude)))
+            rows = [item[0] for item in projected]
+            locations = {
+                item[0].id: PublicPoint(
+                    latitude=float(item[1]), longitude=float(item[2])
+                )
+                for item in projected
+            }
+        else:
+            rows = list(db.scalars(query))
+            locations = {}
         demos = (
             set(
                 db.scalars(
@@ -174,10 +199,17 @@ def browse(
                     pricing.check_stay(row, check_in, check_out, guests, as_of=now)
                 except ApiError:
                     continue
-            results.append(_summary(row, row.id in demos, check_in, check_out))
+            results.append(
+                _summary(
+                    row, row.id in demos, check_in, check_out, locations.get(row.id)
+                )
+            )
         result = PublicListings(
             items=results,
-            next_cursor=str(rows[limit - 1].id) if len(rows) > limit else None,
+            next_cursor=str(rows[limit - 1].id)
+            if len(rows) > limit and not map_view
+            else None,
+            map_truncated=map_view and len(rows) > limit,
         )
     return result
 

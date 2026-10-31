@@ -43,7 +43,14 @@ export interface Policy {
   id: string;
   name: string;
   version: number;
+  terms?: string;
 }
+export interface TimezoneOption {
+  value: string;
+  label: string;
+}
+export const timezoneApi = () =>
+  authenticated<{ items: TimezoneOption[] }>("/host/timezones");
 export type ListingResponse = { listing: Listing };
 export interface UploadIntent {
   photo_id: string;

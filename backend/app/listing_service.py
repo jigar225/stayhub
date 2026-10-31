@@ -4,10 +4,12 @@ from collections.abc import Callable
 from datetime import timedelta
 from typing import Any
 from uuid import UUID, uuid4
+from zoneinfo import available_timezones
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app import policies as policy_definitions
 from app import storage
 from app.auth_service import AccessContext, current_user
 from app.errors import ApiError
@@ -22,6 +24,8 @@ from app.listing_schemas import (
     PhotoReadResponse,
     PoliciesResponse,
     PolicyOutput,
+    TimezoneOption,
+    TimezonesResponse,
     UploadAuthorization,
     UploadIntentInput,
     UploadIntentResponse,
@@ -233,10 +237,30 @@ def policies(db: Session, actor: AccessContext) -> PoliciesResponse:
         current_user(db, actor, "host")
         result = PoliciesResponse(
             items=[
-                PolicyOutput.model_validate(policy)
+                PolicyOutput(
+                    id=policy.id,
+                    name=policy.name,
+                    version=policy.version,
+                    terms=policy_definitions.describe(policy.definition),
+                )
                 for policy in db.scalars(
                     select(CancellationPolicy).order_by(CancellationPolicy.name)
                 )
+            ]
+        )
+    return result
+
+
+def timezones(db: Session, actor: AccessContext) -> TimezonesResponse:
+    with db.begin():
+        current_user(db, actor, "host")
+        result = TimezonesResponse(
+            items=[
+                TimezoneOption(
+                    value=zone,
+                    label=f"{zone} — {zone.rsplit('/', 1)[-1].replace('_', ' ')}",
+                )
+                for zone in sorted(available_timezones())
             ]
         )
     return result

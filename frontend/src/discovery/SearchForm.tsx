@@ -77,6 +77,10 @@ export function SearchForm({
         "check_out",
         "guests",
         "cursor",
+        "west",
+        "south",
+        "east",
+        "north",
       ])
         query.delete(key);
       new URLSearchParams(searchQuery(values)).forEach((value, key) =>

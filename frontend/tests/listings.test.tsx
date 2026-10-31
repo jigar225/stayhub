@@ -21,6 +21,7 @@ const mocks = vi.hoisted(() => ({
   },
   read: vi.fn(),
   policies: vi.fn(),
+  timezones: vi.fn(),
   save: vi.fn(),
   intent: vi.fn(),
   complete: vi.fn(),
@@ -43,6 +44,7 @@ vi.mock("../src/listings/api", async (original) => ({
     complete: mocks.complete,
   },
   uploadFile: mocks.upload,
+  timezoneApi: mocks.timezones,
 }));
 vi.mock("../src/listings/PhotoImage", () => ({
   PhotoImage: () => <div>Private photo</div>,
@@ -92,6 +94,9 @@ beforeEach(() => {
   };
   mocks.read.mockResolvedValue({ listing: { ...draft } });
   mocks.policies.mockResolvedValue({ items: [] });
+  mocks.timezones.mockResolvedValue({
+    items: [{ value: "Europe/Lisbon", label: "Europe/Lisbon — Lisbon" }],
+  });
   mocks.save.mockImplementation(
     async (_id: string, version: number, fields: object) => ({
       listing: { ...draft, ...fields, version: version + 1 },
@@ -100,6 +105,38 @@ beforeEach(() => {
   mocks.upload.mockResolvedValue(undefined);
 });
 describe("listing save and recovery", () => {
+  it("shows all versioned policy options and explains the selected server terms", async () => {
+    mocks.policies.mockResolvedValue({
+      items: ["Flexible", "Moderate", "Firm", "Strict"].map((name) => ({
+        id: name,
+        name,
+        version: 1,
+        terms: `${name} versioned server terms; cleaning refunded before check-in.`,
+      })),
+    });
+    render(wizard());
+    await screen.findByRole("heading", { name: "Tell us about your place" });
+    await userEvent.click(
+      screen.getByRole("button", { name: /Pricing & rules/ }),
+    );
+    const select = await screen.findByLabelText("Cancellation policy");
+    for (const name of ["Flexible", "Moderate", "Firm", "Strict"])
+      expect(
+        screen.getByRole("option", { name: `${name} · v1` }),
+      ).toBeInTheDocument();
+    fireEvent.change(select, { target: { value: "Strict" } });
+    expect(screen.getByText("Selected: Strict")).toBeVisible();
+    expect(
+      screen.getAllByText(
+        "Strict versioned server terms; cleaning refunded before check-in.",
+      ),
+    ).toHaveLength(2);
+    expect(
+      screen.getByText(
+        /Existing reservations keep their booked policy and version/,
+      ),
+    ).toBeVisible();
+  });
   it("preserves legacy categories and serializes explicit tag removal as an empty array", () => {
     expect(changedFields(toForm(draft), draft)).toEqual({});
     const tagged = { ...draft, categories: ["cabins", "off-grid"] };

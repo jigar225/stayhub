@@ -1,15 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import * as maplibregl from "maplibre-gl";
+import { maplibregl, mapStyle, colourMap } from "./mapRuntime";
 import type { Map as LibreMap, Marker } from "maplibre-gl";
-import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
-import "maplibre-gl/dist/maplibre-gl.css";
 import type { Point } from "./api";
 import "./location.css";
-
-maplibregl.setWorkerUrl(workerUrl);
-const style =
-  import.meta.env.VITE_MAP_STYLE_URL ||
-  "https://tiles.openfreemap.org/styles/positron";
 
 export default function LocationMap({
   point,
@@ -40,7 +33,7 @@ export default function LocationMap({
     try {
       map = new maplibregl.Map({
         container: container.current,
-        style,
+        style: mapStyle,
         center: point ? [point.longitude, point.latitude] : [0, 20],
         zoom: point ? (approximate ? 11 : 14) : 1,
         maxZoom: approximate ? 12 : 19,
@@ -53,15 +46,7 @@ export default function LocationMap({
       });
       mapRef.current = map;
       map.on("style.load", () => {
-        if (!map || import.meta.env.VITE_MAP_STYLE_URL) return;
-        // Keep the light street/label styling while adding StayHub's soft colours.
-        for (const [id, color] of [
-          ["park", "#dcebd7"],
-          ["landcover_wood", "#dcebd7"],
-          ["water", "#cfe3eb"],
-        ]) {
-          if (map.getLayer(id)) map.setPaintProperty(id, "fill-color", color);
-        }
+        if (map) colourMap(map);
       });
       map.addControl(
         new maplibregl.NavigationControl({ showCompass: false }),

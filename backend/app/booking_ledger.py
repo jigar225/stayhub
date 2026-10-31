@@ -78,6 +78,32 @@ def event(
     *,
     system_identity: str = "request-expiry",
 ) -> None:
+    if action in {
+        "reservation.accepted",
+        "reservation.declined",
+        "reservation.expired",
+        "reservation.cancelled_by_guest",
+        "reservation.cancelled_by_host",
+    }:
+        from app.notification_service import notify
+
+        reservation = db.get(Reservation, target_id)
+        if reservation is not None:
+            title = {
+                "reservation.accepted": "Your reservation was accepted",
+                "reservation.declined": "Your reservation was declined",
+                "reservation.expired": "Reservation request expired",
+            }.get(action, "Reservation cancelled")
+            for recipient in (reservation.guest_id, reservation.host_id):
+                notify(
+                    db,
+                    recipient,
+                    action,
+                    str(target_id),
+                    title=title,
+                    href=f"/trips/{target_id}",
+                    actor_id=actor_id,
+                )
     db.add(
         EventLog(
             actor_id=actor_id,

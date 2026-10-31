@@ -8,6 +8,9 @@ export function MonthGrid({
   selectedStart,
   selectedEnd,
   disabled = false,
+  minDate,
+  maxDate,
+  today,
 }: {
   month: string;
   blocks: CalendarOccupancy[];
@@ -15,6 +18,9 @@ export function MonthGrid({
   selectedStart: string;
   selectedEnd: string;
   disabled?: boolean;
+  minDate?: string;
+  maxDate?: string;
+  today?: string;
 }) {
   const cells = monthCells(month);
   return (
@@ -58,8 +64,14 @@ export function MonthGrid({
                     (item) => item.check_in <= date && date < item.check_out,
                   )
                 : undefined;
-              const label =
-                block?.kind === "reservation"
+              const outside =
+                !!date &&
+                ((!!minDate && date < minDate) ||
+                  (!!maxDate && date >= maxDate));
+              const past = !!date && !!today && date < today;
+              const label = outside
+                ? "Outside available range"
+                : block?.kind === "reservation"
                   ? block.state === "pending"
                     ? "Pending"
                     : block.state === "checked_in"
@@ -69,13 +81,15 @@ export function MonthGrid({
                         : "Confirmed"
                   : block
                     ? "Blocked"
-                    : "Available";
+                    : past
+                      ? "Past date"
+                      : "Available";
               return (
                 <td key={date ?? `empty-${index}`}>
                   {date && (
                     <button
                       type="button"
-                      disabled={disabled}
+                      disabled={disabled || outside || (past && !block)}
                       className={`${block?.kind === "reservation" ? block.state : block ? "blocked" : "available"} ${selectedStart && selectedStart <= date && date < selectedEnd ? "date-selected" : ""}`}
                       aria-label={`${formatDate(date)}, ${label}`}
                       aria-pressed={

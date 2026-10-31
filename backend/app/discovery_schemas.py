@@ -70,7 +70,13 @@ class PublicPhotos(BaseModel):
     items: list[PublicPhoto]
 
 
+class PublicPoint(BaseModel):
+    latitude: float
+    longitude: float
+
+
 class PublicSummary(BaseModel):
+    location: PublicPoint | None = None
     id: UUID
     title: str
     destination: str
@@ -89,6 +95,7 @@ class PublicSummary(BaseModel):
 
 
 class PublicListings(BaseModel):
+    map_truncated: bool = False
     items: list[PublicSummary]
     next_cursor: str | None
 

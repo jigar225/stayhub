@@ -1,5 +1,6 @@
 """Immutable version-one definitions. Refund computation is a later milestone."""
 
+from typing import Any
 from uuid import NAMESPACE_URL, uuid5
 
 from sqlalchemy import select
@@ -38,6 +39,34 @@ DEFINITIONS: dict[str, dict[str, object]] = {
         ],
     },
 }
+
+
+def describe(definition: dict[str, Any]) -> str:
+    """Render persisted versioned terms, without changing booked arithmetic."""
+    clauses = []
+    grace = definition.get("booking_grace_hours")
+    if grace is not None:
+        clauses.append(
+            f"{definition['grace_percent']}% within {grace} hours after booking, before check-in. Otherwise:"
+        )
+    windows = sorted(
+        definition["windows"], key=lambda w: w["hours_before"], reverse=True
+    )
+    for window in windows:
+        hours, percent = window["hours_before"], window["percent"]
+        if hours:
+            duration = (
+                f"{hours // 24} days"
+                if hours % 24 == 0 and hours >= 48
+                else f"{hours} hours"
+            )
+            clauses.append(f"{percent}% at least {duration} before check-in.")
+        else:
+            clauses.append(f"Otherwise {percent}% before check-in.")
+    clauses.append(
+        "Percentages apply to nights and the guest service fee. Cleaning fees are fully refunded for cancellation before check-in. Cancellation is unavailable at or after check-in."
+    )
+    return " ".join(clauses)
 
 
 def seed_policies(db: Session) -> None:

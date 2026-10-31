@@ -422,3 +422,22 @@ host's explicit typed search. Unit/browser suites must keep using a mocked
 provider boundary and do not count as live-provider acceptance. Missing private
 credentials block only that live check. The map uses OpenFreeMap independently;
 public listing locations remain approximate and owner coordinates remain private.
+
+### Explicit review demo history
+
+After deploying migration `0008_communication`, an operator can run
+`bash /opt/stayhub/current/deploy/demo-history.sh` through SSM to preview an
+atomic historical import (the default rolls back). Add `--apply` to commit.
+This command takes the deployment lock and uses the current release image.
+It selects the first provisioned host and five guest-only accounts from
+`demo/provision.json`, using one published property. It creates five completed
+one-night stays, three published demo review pairs, and two open review windows.
+Reviews are explicitly labelled demo content. Dates are relative to the business
+clock; that clock is never modified. Charges/payouts are simulated and reconcile.
+Stable batch IDs make reruns preserve reviews subsequently entered by users.
+Conflicting occupancy or missing accounts abort the entire import. No passwords
+are required or printed. Output lists demo emails, booking codes and deadlines.
+
+From the repository root, run `python3 infra/deploy/remote-demo-history.py` for
+that preview, then `python3 infra/deploy/remote-demo-history.py --apply` to commit
+through the existing `stayhub` AWS profile and Terraform instance output.

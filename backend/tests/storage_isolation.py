@@ -14,7 +14,7 @@ import boto3
 if TYPE_CHECKING:
     from mypy_boto3_s3.client import S3Client
 
-MANAGED_PREFIXES = ("stayhub/staging/", "stayhub/final/")
+MANAGED_PREFIXES = ("stayhub/staging/", "stayhub/final/", "stayhub/messages/")
 
 
 class UnsafeTestStorage(RuntimeError):

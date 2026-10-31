@@ -2,17 +2,22 @@ import { useRef } from "react";
 import { Link, Outlet, useLocation } from "react-router";
 import { useSession } from "../auth/useSession";
 import { Brand, Button } from "./ui";
+import { NotificationBell } from "../notifications/Notifications";
 export function HostShell() {
   const { user } = useSession();
   const drawer = useRef<HTMLDialogElement>(null);
   const location = useLocation();
-  const section = location.pathname.includes("/listings")
-    ? "Listings"
-    : location.pathname.includes("/calendar")
-      ? "Calendar"
-      : location.pathname.includes("/earnings")
-        ? "Earnings"
-        : "Today";
+  const section = location.pathname.includes("/reviews")
+    ? "Reviews"
+    : location.pathname.includes("/listings")
+      ? "Listings"
+      : location.pathname.includes("/reservations")
+        ? "Reservations"
+        : location.pathname.includes("/calendar")
+          ? "Calendar"
+          : location.pathname.includes("/earnings")
+            ? "Earnings"
+            : "Today";
   const navigation = (
     <nav>
       {["Today", "Calendar", "Listings", "Earnings"].map((name, index) => (
@@ -28,6 +33,27 @@ export function HostShell() {
           {name}
         </Link>
       ))}
+      <Link
+        className="button ghost"
+        to="/host/reservations"
+        onClick={() => drawer.current?.close()}
+      >
+        Reservations
+      </Link>
+      <Link
+        className={`button ghost ${section === "Reviews" ? "selected" : ""}`}
+        to="/host/reviews"
+        onClick={() => drawer.current?.close()}
+      >
+        Reviews
+      </Link>
+      <Link
+        className="button ghost"
+        to="/messages?role=host"
+        onClick={() => drawer.current?.close()}
+      >
+        Inbox
+      </Link>
     </nav>
   );
   return (
@@ -77,6 +103,8 @@ export function HostShell() {
             Hosting / <strong>{section}</strong>
           </span>
           <Link to="/">Switch to traveling</Link>
+          <Link to="/messages?role=host">Inbox</Link>
+          <NotificationBell />
         </header>
         <Outlet />
       </div>

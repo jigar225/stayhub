@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { Button, EmptyState, ErrorState } from "../components/ui";
 import { ApiError } from "../api/client";
@@ -11,6 +11,8 @@ import { PublicPhotos } from "./PublicPhotos";
 import { FiltersDrawer } from "./FiltersDrawer";
 import { activeFilterCount, applyFilters } from "./filters";
 import { formatEUR } from "../listings/form";
+import { ResultsMapPanel } from "./ResultsMapPanel";
+import { listingsQuery, boundsQuery, type Bounds } from "./mapSearch";
 export function StayResults({ explore = false }: { explore?: boolean }) {
   const [params, setParams] = useSearchParams();
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -21,6 +23,63 @@ export function StayResults({ explore = false }: { explore?: boolean }) {
   } | null>(null);
   const category = params.get("category") ?? "";
   const query = params.toString();
+  const mapView = !explore && params.get("view") === "map";
+  const autoSearch = params.get("move") === "true";
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [draftBounds, setDraftBounds] = useState<Bounds | null>(null);
+  const bounds = useMemo(() => {
+    if (!["west", "south", "east", "north"].every((key) => params.has(key)))
+      return null;
+    const point = Object.fromEntries(
+      ["west", "south", "east", "north"].map((key) => [
+        key,
+        Number(params.get(key)),
+      ]),
+    ) as Bounds;
+    return Object.values(point).every(Number.isFinite) &&
+      point.south < point.north &&
+      point.west !== point.east &&
+      Math.abs(point.south) <= 90 &&
+      Math.abs(point.north) <= 90 &&
+      Math.abs(point.west) <= 180 &&
+      Math.abs(point.east) <= 180
+      ? point
+      : null;
+  }, [params]);
+  function switchView(view: string) {
+    const next = new URLSearchParams(params);
+    next.set("view", view);
+    next.delete("cursor");
+    setParams(next);
+  }
+  const searchArea = useCallback(
+    (area: Bounds, replace = false) => {
+      const next = new URLSearchParams(query);
+      next.set("view", "map");
+      next.delete("cursor");
+      for (const [key, value] of Object.entries(boundsQuery(area)))
+        next.set(key, value);
+      if (next.toString() !== query) setParams(next, { replace });
+    },
+    [query, setParams],
+  );
+  const areaSearch = useRef(searchArea);
+  const moveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  );
+  useEffect(() => {
+    areaSearch.current = searchArea;
+    clearTimeout(moveTimer.current);
+  }, [searchArea]);
+  useEffect(() => {
+    if (!mapView || !autoSearch || !draftBounds) return;
+    moveTimer.current = setTimeout(
+      () => areaSearch.current(draftBounds, true),
+      400,
+    );
+    return () => clearTimeout(moveTimer.current);
+  }, [mapView, autoSearch, draftBounds]);
+  const selected = selectedId;
   const [attempt, setAttempt] = useState(0);
   const requestKey = useMemo(() => ({ query, attempt }), [query, attempt]);
   const [data, setData] = useState<{
@@ -29,6 +88,7 @@ export function StayResults({ explore = false }: { explore?: boolean }) {
     generation: number;
     items: PublicSummary[];
     cursor: string | null;
+    truncated: boolean;
   } | null>(null);
   const [failure, setFailure] = useState<{
     query: string;
@@ -52,7 +112,7 @@ export function StayResults({ explore = false }: { explore?: boolean }) {
     const requestGeneration = ++generation.current;
     const controller = new AbortController();
     void discoveryApi
-      .search(query, controller.signal)
+      .search(listingsQuery(new URLSearchParams(query)), controller.signal)
       .then((result) => {
         if (active) {
           setData({
@@ -61,6 +121,7 @@ export function StayResults({ explore = false }: { explore?: boolean }) {
             generation: requestGeneration,
             items: result.items,
             cursor: result.next_cursor,
+            truncated: result.map_truncated ?? false,
           });
           setFailure(null);
         }
@@ -141,7 +202,7 @@ export function StayResults({ explore = false }: { explore?: boolean }) {
   const values = searchValues(params);
   return (
     <main
-      className={`page-container discovery-page ${explore ? "explore-page" : ""}`}
+      className={`page-container discovery-page ${explore ? "explore-page" : ""} ${mapView ? "map-discovery-page" : ""}`}
     >
       <div className={`explore-intro ${explore ? "" : "results-intro"}`}>
         <div className="page-heading">
@@ -216,6 +277,76 @@ export function StayResults({ explore = false }: { explore?: boolean }) {
           )}
         </Button>
       </div>
+      {!explore && (
+        <div className="map-search-toolbar">
+          <div
+            className="map-view-switch"
+            role="group"
+            aria-label="Results view"
+          >
+            <Button
+              variant={mapView ? "secondary" : "primary"}
+              aria-pressed={!mapView}
+              onClick={() => switchView("list")}
+            >
+              List
+            </Button>
+            <Button
+              variant={mapView ? "primary" : "secondary"}
+              aria-pressed={mapView}
+              onClick={() => switchView("map")}
+            >
+              Map
+            </Button>
+          </div>
+          {mapView && (
+            <>
+              <label className="map-auto-search">
+                <input
+                  type="checkbox"
+                  checked={autoSearch}
+                  onChange={(event) => {
+                    const next = new URLSearchParams(params);
+                    next.set("move", String(event.target.checked));
+                    setParams(next);
+                  }}
+                />
+                Search as I move the map
+              </label>
+              {!autoSearch && (
+                <Button
+                  variant="secondary"
+                  disabled={!draftBounds}
+                  onClick={() => {
+                    if (draftBounds) searchArea(draftBounds);
+                  }}
+                >
+                  Search this area
+                </Button>
+              )}
+              <p className="map-search-help">
+                {bounds
+                  ? "Searching this map area instead of the destination. Dates, guests and filters still apply."
+                  : "Showing mapped stays matching your destination. Move the map to search another area."}{" "}
+                Locations are approximate.{" "}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = new URLSearchParams(params);
+                    for (const key of ["west", "south", "east", "north"])
+                      next.delete(key);
+                    next.set("move", "false");
+                    setDraftBounds(null);
+                    setParams(next);
+                  }}
+                >
+                  Reset to destination
+                </button>
+              </p>
+            </>
+          )}
+        </div>
+      )}
       {filtersOpen && (
         <FiltersDrawer
           params={params}
@@ -226,106 +357,168 @@ export function StayResults({ explore = false }: { explore?: boolean }) {
           }}
         />
       )}
-      {error ? (
-        <ErrorState message={error} retry={() => setAttempt(attempt + 1)} />
-      ) : !current ? (
-        <div className="stay-loading" role="status">
-          <span />
-          Loading stays…
-        </div>
-      ) : !current.items.length && !current.cursor ? (
-        <EmptyState
-          title="No stays match your plans"
-          action={
-            <Link className="button secondary" to="/stays">
-              Browse all stays
-            </Link>
-          }
-        >
-          Try adjusting your filters, destination, guests or dates.
-        </EmptyState>
-      ) : (
-        <>
-          <div className="results-heading">
-            <h2>
-              {explore
-                ? "Places to make your own"
-                : `${current.items.length} ${current.items.length === 1 ? "stay" : "stays"} shown`}
-            </h2>
-            <p className="muted">
-              {values.check_in && values.check_out
-                ? "Stay totals include cleaning and the StayHub service fee."
-                : explore
-                  ? `${current.items.length} ${current.items.length === 1 ? "stay" : "stays"} shown · Choose dates for the full stay price.`
-                  : "Choose dates for the full stay price."}
+      {mapView && (
+        <div className="mobile-map-feedback" aria-live="polite">
+          {error ? (
+            <ErrorState message={error} retry={() => setAttempt(attempt + 1)} />
+          ) : !current ? (
+            <p>Loading mapped stays…</p>
+          ) : !current.items.length ? (
+            <p>
+              No mapped stays match this area and your filters. Try another
+              area, or List for stays without saved locations.
             </p>
-          </div>
-          <div className={explore ? "public-stay-grid" : "public-stay-results"}>
-            {current.items.map((listing) => (
-              <article
-                key={listing.id}
-                className={`public-stay-card ${explore ? "" : "result-row"}`}
-              >
-                <div className="stay-photo-link">
-                  <PublicPhotos
-                    key={`${listing.id}-${listing.photos[0]?.url ?? ""}`}
-                    listingId={listing.id}
-                    photos={listing.photos}
-                    title={listing.title}
-                  />
-                </div>
-                <div className="public-stay-content">
-                  <Link to={`/stays/${listing.id}${query ? `?${query}` : ""}`}>
-                    <h2>{listing.title}</h2>
-                  </Link>
-                  <p className="muted">
-                    {listing.destination} ·{" "}
-                    {listing.property_type === "room"
-                      ? "Private room"
-                      : `Entire ${listing.property_type}`}{" "}
-                    · {listing.capacity} guests · {listing.beds}{" "}
-                    {listing.beds === 1 ? "bed" : "beds"} · {listing.baths}{" "}
-                    {listing.baths === 1 ? "bath" : "baths"}
-                  </p>
-                  {listing.demo_label && (
-                    <p className="demo-label">{listing.demo_label}</p>
-                  )}
-                  <div className="stay-card-price">
-                    <p>
-                      <strong>{formatEUR(listing.nightly_minor)}</strong>
-                      <span> / night</span>
-                    </p>
-                    {listing.stay_price && (
-                      <p>
-                        <strong>
-                          {formatEUR(listing.stay_price.total_minor)}
-                        </strong>
-                        <span> total · {listing.stay_price.nights} nights</span>
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </article>
-            ))}
-          </div>
-          {moreError?.query === query &&
-            moreError.generation === current.generation && (
-              <ErrorState
-                message={moreError.message}
-                retry={() => void more()}
-              />
-            )}{" "}
-          {current.cursor && (
-            <Button
-              variant="secondary"
-              disabled={moreBusy}
-              onClick={() => void more()}
-            >
-              {moreBusy ? "Loading…" : "Load more stays"}
-            </Button>
+          ) : (
+            <p>
+              {current.items.length} mapped stays shown.{" "}
+              {current.truncated
+                ? "Result limit reached; zoom in or narrow your filters."
+                : "Up to 50 results."}
+            </p>
           )}
-        </>
+        </div>
       )}
+      <div className={mapView ? "results-map-layout" : ""}>
+        <div className="results-list-panel">
+          {error ? (
+            <ErrorState message={error} retry={() => setAttempt(attempt + 1)} />
+          ) : !current ? (
+            <div className="stay-loading" role="status">
+              <span />
+              Loading stays…
+            </div>
+          ) : !current.items.length && !current.cursor ? (
+            <EmptyState
+              title="No stays match your plans"
+              action={
+                <Link className="button secondary" to="/stays">
+                  Browse all stays
+                </Link>
+              }
+            >
+              Try adjusting your filters, destination, guests or dates.
+            </EmptyState>
+          ) : (
+            <>
+              <div className="results-heading">
+                <h2>
+                  {explore
+                    ? "Places to make your own"
+                    : `${current.items.length} ${current.items.length === 1 ? "stay" : "stays"} shown`}
+                </h2>
+                <p className="muted">
+                  {values.check_in && values.check_out
+                    ? "Stay totals include cleaning and the StayHub service fee."
+                    : explore
+                      ? `${current.items.length} ${current.items.length === 1 ? "stay" : "stays"} shown · Choose dates for the full stay price.`
+                      : "Choose dates for the full stay price."}
+                </p>
+              </div>
+              {mapView && (
+                <p className="map-results-notice" role="status">
+                  {current.truncated
+                    ? "Result limit reached (up to 50 mapped stays). Zoom in or narrow your filters; more matching stays may exist."
+                    : "Up to 50 mapped stays. Stays without a saved location are available in List view."}
+                </p>
+              )}
+              <div
+                className={explore ? "public-stay-grid" : "public-stay-results"}
+              >
+                {current.items.map((listing) => (
+                  <article
+                    key={listing.id}
+                    className={`public-stay-card ${explore ? "" : "result-row"} ${mapView && selected === listing.id ? "map-selected-card" : ""}`}
+                    data-listing-id={listing.id}
+                  >
+                    <div className="stay-photo-link">
+                      <PublicPhotos
+                        key={`${listing.id}-${listing.photos[0]?.url ?? ""}`}
+                        listingId={listing.id}
+                        photos={listing.photos}
+                        title={listing.title}
+                      />
+                    </div>
+                    <div className="public-stay-content">
+                      <Link
+                        to={`/stays/${listing.id}${query ? `?${query}` : ""}`}
+                      >
+                        <h2>{listing.title}</h2>
+                      </Link>
+                      <p className="muted">
+                        {listing.destination} ·{" "}
+                        {listing.property_type === "room"
+                          ? "Private room"
+                          : `Entire ${listing.property_type}`}{" "}
+                        · {listing.capacity} guests · {listing.beds}{" "}
+                        {listing.beds === 1 ? "bed" : "beds"} · {listing.baths}{" "}
+                        {listing.baths === 1 ? "bath" : "baths"}
+                      </p>
+                      {mapView && (
+                        <button
+                          className="show-stay-pin"
+                          type="button"
+                          aria-pressed={selected === listing.id}
+                          onClick={() => setSelectedId(listing.id)}
+                        >
+                          Show on map
+                          <span className="sr-only">: {listing.title}</span>
+                        </button>
+                      )}
+                      {listing.demo_label && (
+                        <p className="demo-label">{listing.demo_label}</p>
+                      )}
+                      <div className="stay-card-price">
+                        <p>
+                          <strong>{formatEUR(listing.nightly_minor)}</strong>
+                          <span> / night</span>
+                        </p>
+                        {listing.stay_price && (
+                          <p>
+                            <strong>
+                              {formatEUR(listing.stay_price.total_minor)}
+                            </strong>
+                            <span>
+                              {" "}
+                              total · {listing.stay_price.nights} nights
+                            </span>
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+              {moreError?.query === query &&
+                moreError.generation === current.generation && (
+                  <ErrorState
+                    message={moreError.message}
+                    retry={() => void more()}
+                  />
+                )}{" "}
+              {current.cursor && (
+                <Button
+                  variant="secondary"
+                  disabled={moreBusy}
+                  onClick={() => void more()}
+                >
+                  {moreBusy ? "Loading…" : "Load more stays"}
+                </Button>
+              )}
+            </>
+          )}
+        </div>
+        {mapView && (
+          <ResultsMapPanel
+            items={current?.items ?? []}
+            selected={selected}
+            onSelect={setSelectedId}
+            onBounds={setDraftBounds}
+            bounds={bounds}
+            query={query}
+            onList={() => switchView("list")}
+          />
+        )}
+      </div>
     </main>
   );
 }

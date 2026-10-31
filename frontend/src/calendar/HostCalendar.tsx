@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router";
+import { useBusinessTime } from "../api/businessTime";
+import { calendarWindow } from "./calendarWindow";
 import { ApiError } from "../api/client";
 import { Button, EmptyState, ErrorState } from "../components/ui";
 import { listingsApi, type Listing } from "../listings/api";
 import {
   addDays,
-  dateString,
   formatDate,
-  monthBounds,
   monthLabel,
   shiftMonth,
   validDate,
@@ -23,12 +23,13 @@ export function HostCalendar() {
   const [moreBusy, setMoreBusy] = useState(false);
   const requestedId = params.get("listing");
   const selectedId = requestedId ?? listings?.[0]?.id ?? "";
-  const rawMonth = params.get("month") ?? dateString(new Date()).slice(0, 7);
-  const month =
-    /^\d{4}-\d{2}$/.test(rawMonth) && validDate(`${rawMonth}-01`)
-      ? rawMonth
-      : dateString(new Date()).slice(0, 7);
-  const bounds = monthBounds(month);
+  const clock = useBusinessTime();
+  const timezone =
+    listings?.find((listing) => listing.id === selectedId)?.timezone ?? "UTC";
+  const rawMonth = params.get("month");
+  const bounds = calendarWindow(clock.now ?? new Date(), timezone, rawMonth);
+  const month = bounds.month;
+  const clockReady = clock.now !== null;
   const key = `${selectedId}-${month}`;
   const [data, setData] = useState<{ key: string; value: CalendarData } | null>(
     null,
@@ -66,7 +67,7 @@ export function HostCalendar() {
     };
   }, [listAttempt]);
   useEffect(() => {
-    if (!selectedId) return;
+    if (!selectedId || !clockReady) return;
     let active = true;
     const controller = new AbortController();
     void calendarApi
@@ -89,7 +90,7 @@ export function HostCalendar() {
       active = false;
       controller.abort();
     };
-  }, [selectedId, bounds.start, bounds.end, key, attempt]);
+  }, [selectedId, bounds.start, bounds.end, key, attempt, clockReady]);
   async function more() {
     if (!cursor) return;
     setMoreBusy(true);
@@ -276,19 +277,39 @@ export function HostCalendar() {
           <Button
             variant="secondary"
             aria-label="Previous month"
-            disabled={busy}
+            disabled={busy || !clockReady || month <= bounds.firstMonth}
             onClick={() => updateParams(selectedId, shiftMonth(month, -1))}
           >
-            ‹
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              aria-hidden="true"
+            >
+              <path d="m15 6-6 6 6 6" />
+            </svg>
           </Button>
           <h2>{monthLabel(month)}</h2>
           <Button
             variant="secondary"
             aria-label="Next month"
-            disabled={busy}
+            disabled={busy || !clockReady || month >= bounds.lastMonth}
             onClick={() => updateParams(selectedId, shiftMonth(month, 1))}
           >
-            ›
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              aria-hidden="true"
+            >
+              <path d="m9 6 6 6-6 6" />
+            </svg>
           </Button>
         </div>
       </div>
@@ -326,10 +347,11 @@ export function HostCalendar() {
             "Listing local dates"}
         </span>
       </div>
-      {rawMonth !== month && (
-        <p className="field-error">
-          The requested month was invalid. Showing the current month.
-        </p>
+      {rawMonth && rawMonth !== month && (
+        <p className="field-error">Showing the nearest supported month.</p>
+      )}
+      {clock.error && (
+        <ErrorState message={clock.error} retry={() => void clock.refresh()} />
       )}
       {currentError ? (
         <ErrorState
@@ -343,6 +365,9 @@ export function HostCalendar() {
           <div className="calendar-board">
             <MonthGrid
               month={month}
+              minDate={bounds.start}
+              maxDate={bounds.end}
+              today={bounds.today}
               blocks={current.items}
               onSelect={choose}
               selectedStart={start}

@@ -13,7 +13,7 @@ type MapProps = {
   onChange?: (point: Point) => void;
   disabled?: boolean;
 };
-class MapBoundary extends Component<
+export class MapBoundary extends Component<
   { children: ReactNode; retry: () => void },
   { failed: boolean }
 > {
@@ -33,7 +33,7 @@ function MapFailure({ retry }: { retry: () => void }) {
   return (
     <div className="location-inline-fallback" aria-live="polite">
       <strong>Map unavailable</strong>
-      <p>Your other edits and booking controls remain available.</p>
+      <p>You can keep browsing stays. Your other controls remain available.</p>
       <button className="button secondary" type="button" onClick={retry}>
         Retry map
       </button>

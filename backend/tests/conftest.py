@@ -63,7 +63,7 @@ def clean_db(isolated_storage: None) -> Generator[None]:
         with engine.begin() as connection:
             connection.execute(
                 text(
-                    "TRUNCATE payouts, event_log, idempotency_records, refunds, payments, reservations, calendar_entries, demo_asset_photos, demo_imports, listing_photos, listings, cancellation_policies, refresh_tokens, sessions, user_roles, users"
+                    "TRUNCATE notifications, message_reads, message_attachments, messages, conversations, reviews, review_windows, payouts, event_log, idempotency_records, refunds, payments, reservations, calendar_entries, demo_asset_photos, demo_imports, listing_photos, listings, cancellation_policies, refresh_tokens, sessions, user_roles, users"
                 )
             )
         from sqlalchemy.orm import Session

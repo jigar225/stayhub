@@ -20,6 +20,7 @@ import { PhotoManager } from "./PhotoManager";
 import { StatusBadge } from "./ListingCards";
 import { LocationEditor } from "../location/LocationEditor";
 import { STAY_CATEGORIES } from "../discovery/categories";
+import { TimezonePicker } from "./TimezonePicker";
 const steps = [
   "The basics",
   "Photos & content",
@@ -413,10 +414,12 @@ export function ListingWizard() {
               }));
             }}
           />
-          {field("timezone", "Timezone", {
-            hint: "IANA timezone, e.g. Europe/Lisbon",
-            maxLength: 100,
-          })}
+          <TimezonePicker
+            value={form.timezone}
+            onChange={(value) => update("timezone", value)}
+            disabled={disabled}
+            error={fieldText(errors.timezone)}
+          />
           {field("capacity", "Guests", { type: "number", min: 1, max: 30 })}
           {field("bedrooms", "Bedrooms", { type: "number", min: 0, max: 20 })}
           {field("beds", "Beds", { type: "number", min: 1, max: 30 })}
@@ -523,11 +526,49 @@ export function ListingWizard() {
             hint: "Enter 0 for no cleaning fee.",
           })}
           {field("policy_id", "Cancellation policy", {
+            hint: "Changes apply to future bookings. Existing reservations keep their booked policy and version.",
             choices: policies.map((policy) => ({
               value: policy.id,
               label: `${policy.name} · v${policy.version}`,
             })),
           })}
+          <section
+            className="policy-comparison full-width"
+            aria-labelledby="policy-comparison-heading"
+          >
+            <h3 id="policy-comparison-heading">
+              Compare cancellation policies
+            </h3>
+            {policies.find((policy) => policy.id === form.policy_id) && (
+              <div className="selected-policy-summary" role="status">
+                <strong>
+                  Selected:{" "}
+                  {
+                    policies.find((policy) => policy.id === form.policy_id)
+                      ?.name
+                  }
+                </strong>
+                <p>
+                  {policies.find((policy) => policy.id === form.policy_id)
+                    ?.terms ??
+                    "Policy terms could not load. Reload before choosing a policy."}
+                </p>
+              </div>
+            )}
+            <dl>
+              {policies.map((policy) => (
+                <div key={policy.id}>
+                  <dt>
+                    {policy.name} · v{policy.version}
+                  </dt>
+                  <dd>
+                    {policy.terms ??
+                      "Policy terms unavailable. Reload this draft to retry."}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </section>
           {field("booking_mode", "Booking mode", {
             choices: [
               { value: "instant", label: "Instant booking" },

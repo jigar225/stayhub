@@ -1,3 +1,4 @@
+import { HostReviews } from "./reviews/HostReviews";
 import { Fragment, useEffect, useState, type ReactNode } from "react";
 import { Link, Navigate, Route, Routes, useLocation } from "react-router";
 import { bootstrap, refresh } from "./api/client";
@@ -20,9 +21,13 @@ import { StayDetail } from "./discovery/StayDetail";
 import { Checkout } from "./booking/Checkout";
 import { Trips, TripDetail } from "./booking/Trips";
 import { HostToday } from "./booking/HostToday";
+import { HostReservations } from "./booking/HostReservations";
 import { clearOtherActorActions } from "./booking/actionRecovery";
 import { readSubmission } from "./booking/recovery";
 import { HostCalendar } from "./calendar/HostCalendar";
+import { Notifications } from "./notifications/Notifications";
+import { Messages, Inbox } from "./communication/Messages";
+import { ReviewForm } from "./reviews/ReviewForm";
 function Protected({
   children,
   role,
@@ -91,6 +96,38 @@ export function App() {
   return (
     <Routes>
       <Route element={<GuestShell />}>
+        <Route
+          path="notifications"
+          element={
+            <Protected>
+              <Notifications />
+            </Protected>
+          }
+        />
+        <Route
+          path="messages"
+          element={
+            <Protected>
+              <Inbox />
+            </Protected>
+          }
+        />
+        <Route
+          path="messages/:reservationId"
+          element={
+            <Protected>
+              <Messages />
+            </Protected>
+          }
+        />
+        <Route
+          path="trips/:id/review"
+          element={
+            <Protected>
+              <ReviewForm />
+            </Protected>
+          }
+        />
         <Route index element={<StayResults explore />} />
         <Route path="stays" element={<StayResults />} />
         <Route path="stays/:id" element={<StayDetail />} />
@@ -157,6 +194,8 @@ export function App() {
         }
       >
         <Route path="today" element={<HostToday />} />
+        <Route path="reservations" element={<HostReservations />} />
+        <Route path="reviews" element={<HostReviews />} />
         <Route path="calendar" element={<HostCalendar />} />
         <Route path="earnings" element={<Earnings />} />
         <Route path="listings" element={<ListingCards />} />

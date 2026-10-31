@@ -89,7 +89,7 @@ class DraftFields(StrictModel):
             try:
                 ZoneInfo(value)
             except (ZoneInfoNotFoundError, ValueError):
-                raise ValueError("Use an IANA timezone.") from None
+                raise ValueError("Use a supported IANA timezone.") from None
         return value
 
     @field_validator("amenities", "house_rules", mode="before")
@@ -151,6 +151,16 @@ class PolicyOutput(BaseModel):
     id: UUID
     name: str
     version: int
+    terms: str
+
+
+class TimezoneOption(BaseModel):
+    value: str
+    label: str
+
+
+class TimezonesResponse(BaseModel):
+    items: list[TimezoneOption]
 
 
 class PoliciesResponse(BaseModel):

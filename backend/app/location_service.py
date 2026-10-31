@@ -1,7 +1,6 @@
 """Location privacy projection and persisted provider request reservation."""
 
 from datetime import timedelta
-from decimal import ROUND_HALF_UP, Decimal
 from uuid import UUID
 
 from sqlalchemy import select
@@ -10,6 +9,7 @@ from sqlalchemy.orm import Session
 from app import location_provider
 from app.auth_service import AccessContext, current_user
 from app.config import get_settings
+from app.discovery_map import public_coordinates
 from app.errors import ApiError
 from app.models import Listing, LocationProviderBudget, now
 from app.security import limiter
@@ -101,15 +101,14 @@ def public_location(db: Session, listing_id: UUID) -> dict[str, object]:
         if listing.latitude is None or listing.longitude is None:
             return {"location": None}
 
-        def coarse(value: float) -> float:
-            return float(
-                Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-            )
+        latitude, longitude = db.execute(
+            select(*public_coordinates()).where(Listing.id == listing_id)
+        ).one()
 
         return {
             "location": {
-                "latitude": coarse(listing.latitude),
-                "longitude": coarse(listing.longitude),
+                "latitude": float(latitude),
+                "longitude": float(longitude),
                 "grid_degrees": 0.01,
                 "radius_meters": 800,
                 "max_zoom": 12,

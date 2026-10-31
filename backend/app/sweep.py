@@ -101,6 +101,10 @@ def _one(db: Session, rid: UUID, lid: UUID) -> SweepResult:
                 if action == "checked_in":
                     result.checked_in += 1
                 else:
+                    row.completed_at = effective
+                    from app.review_service import completed
+
+                    completed(db, row, business_time.at(db))
                     result.completed += 1
             db.flush()
     return result
@@ -142,6 +146,9 @@ def run(db: Session, batch_size: int = 100) -> SweepResult:
             result.deferred += 1
             result.has_more = True
             logger.warning("Sweep deferred reservation %s", rid)
+    from app.review_service import sweep_reviews
+
+    result.has_more = sweep_reviews(db, batch_size) or result.has_more
     return result
 
 

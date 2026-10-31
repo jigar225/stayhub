@@ -65,6 +65,10 @@ export function TripCard({ reservation: r }: { reservation: Reservation }) {
         <Link className="button secondary" to={`/trips/${r.id}`}>
           View reservation
         </Link>
+        <Link to={`/messages/${r.id}`}>Messages</Link>
+        {r.state === "completed" && (
+          <Link to={`/trips/${r.id}/review`}>Review this stay</Link>
+        )}
       </div>
     </article>
   );
@@ -261,6 +265,16 @@ export function TripDetail() {
         <p>
           Reservation code <code>{r.code}</code>
         </p>
+        <div className="reservation-communication-actions">
+          <Link className="button secondary" to={`/messages/${r.id}`}>
+            Message the other party
+          </Link>
+          {r.state === "completed" && (
+            <Link className="button secondary" to={`/trips/${r.id}/review`}>
+              Review this stay
+            </Link>
+          )}
+        </div>
       </div>
       {photoError ? (
         <ErrorState

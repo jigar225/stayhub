@@ -224,3 +224,64 @@ Reusable browser tests include `detail-extras.spec.ts`,
 isolated provisioned stack. Tests create fictional local records. Local runners, screenshots and milestone stack files
 are ignored; preserve all review volumes. Mocked autocomplete tests never prove
 live Geoapify integration. No production release is implied by local checks.
+
+## Search-results map
+
+`/stays?view=map` reuses MapLibre/OpenFreeMap. List/map selection, filters,
+party and dates remain in browser history. A destination search initially fits
+its mapped stays. “Search this area” replaces destination matching with viewport
+matching; “Search as I move the map” applies it after a 400 ms debounce. Reset to
+destination removes bounds; submitting the search form also clears bounds.
+Nightly pins and optional stay totals use the existing server price projection.
+Overlapping public points expose a picker containing every matching stay.
+
+The existing `GET /api/v1/listings` accepts additive `map=true` and optional
+`west`, `south`, `east`, `north` query parameters. Supply all four bounds together
+with map mode. Latitude bounds must satisfy -90 ≤ south < north ≤ 90; longitudes
+are in [-180, 180], with west > east representing an antimeridian crossing and
+equal west/east rejected. Duplicate scalar fields, nonfinite bounds, partial
+bounds and map cursors return 422. All existing dates, guests, category and
+filter validation still applies. With bounds, destination is ignored; without
+bounds, destination retains its existing meaning.
+
+Map mode returns at most 50 candidates (the UI requests `limit=50`; the API's
+normal default remains 20), without pagination. `map_truncated=true` means more
+candidates exist: zoom in or refine filters. Local scheduling eligibility may
+reduce a bounded candidate page, so truncation is conservative. Responses add
+`location: {latitude, longitude}` for mapped summaries and `map_truncated` on
+the collection. Normal list/detail summaries have `location: null`; the existing
+public detail location endpoint is unchanged in shape. Listings without a saved
+point remain searchable in list mode.
+
+Both viewport predicates and returned map points use the identical PostgreSQL
+decimal rounding expressions on the approved 0.01-degree public grid. The
+public detail map uses that same projection, including halfway/negative cases.
+No precise owner coordinate is returned or used as a viewport predicate. Points
+are batched with discovery results; there are no per-result location requests.
+Published status, occupancy, scheduling eligibility and price calculations
+continue through the existing discovery path. No schema migration, dependency,
+provider credential or infrastructure change is required. Tile failures offer
+retry and list fallback; map code loads separately from list browsing.
+
+## Communication, reviews and host setup
+
+V2-B adds reservation-party messaging at `/messages`, immutable double-blind
+reviews from completed reservations, published guest ratings on stay detail,
+and recipient-private in-app notifications at `/notifications`. Host
+`/host/reservations` exposes existing reservations and review/message actions.
+The wizard offers searchable IANA timezones and compares all four versioned
+cancellation policies using server-sourced descriptions.
+
+Before using this source, build the backend with the frozen lock (including
+explicit `tzdata` for valid timezone aliases), then apply additive migration
+`0008_communication`. Release API and lifecycle worker together; preserve
+existing private storage, volumes and trusted-origin CORS. No reset, reseed,
+new infrastructure or new secret is required. Existing reservation snapshots,
+refund calculations and payouts are preserved.
+
+See [communication contracts and rollout](backend/communication.md) for tables,
+authorization, message acknowledgements/idempotency, private uploads, exact
+14-day review boundaries and transactional notification cutoffs. The existing
+sweep now handles review eligibility, publication and one48-hour reminder;
+run the existing scoped storage cleanup to collect expired unsent message
+uploads and original staging bytes while retaining sent verified attachments.

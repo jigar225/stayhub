@@ -100,6 +100,7 @@ function RequestCard({
         ({r.timezone})
       </p>
       <Link to={`/trips/${r.id}`}>View booked terms</Link>
+      <Link to={`/messages/${r.id}`}>Message guest</Link>
       {error && <ErrorState message={error} />}
       {uncertain ? (
         <Button disabled={busy} onClick={() => void decide(uncertain.decision)}>
@@ -254,41 +255,43 @@ export function HostToday() {
                 refund.
               </div>
             )}
-            <section
-              className="host-arrivals-summary"
-              aria-label="Today's arrivals"
-            >
-              <div>
-                <h2>Arriving today</h2>
-                <p>
-                  {arrivals
-                    ? `${arrivals.length} confirmed ${arrivals.length === 1 ? "stay" : "stays"} in the loaded reservations. Dates use each stay’s local timezone.`
-                    : "Checking the business date for arrivals…"}
-                </p>
-              </div>
-              {clock.error ? (
+            {(!arrivals || arrivals.length > 0) && (
+              <section
+                className="host-arrivals-summary"
+                aria-label="Today's arrivals"
+              >
                 <div>
-                  <p role="status">
-                    Could not check today’s arrivals. Other reservations remain
-                    available.
+                  <h2>Arriving today</h2>
+                  <p>
+                    {arrivals
+                      ? `${arrivals.length} confirmed ${arrivals.length === 1 ? "stay" : "stays"} in the loaded reservations. Dates use each stay’s local timezone.`
+                      : "Checking the business date for arrivals…"}
                   </p>
+                </div>
+                {clock.error ? (
+                  <div>
+                    <p role="status">
+                      Could not check today’s arrivals. Other reservations
+                      remain available.
+                    </p>
+                    <Button
+                      variant="secondary"
+                      onClick={() => void clock.refresh()}
+                    >
+                      Retry arrivals date
+                    </Button>
+                  </div>
+                ) : (
                   <Button
                     variant="secondary"
-                    onClick={() => void clock.refresh()}
+                    disabled={!arrivals}
+                    onClick={() => setTab("Arriving today")}
                   >
-                    Retry arrivals date
+                    View arrivals
                   </Button>
-                </div>
-              ) : (
-                <Button
-                  variant="secondary"
-                  disabled={!arrivals}
-                  onClick={() => setTab("Arriving today")}
-                >
-                  View arrivals
-                </Button>
-              )}
-            </section>
+                )}
+              </section>
+            )}
             <nav className="trip-tabs" aria-label="Reservation categories">
               {[
                 "Requests",

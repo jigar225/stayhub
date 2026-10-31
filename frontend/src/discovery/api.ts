@@ -24,6 +24,7 @@ export interface PolicyTerms {
   terms: string;
 }
 export interface PublicSummary {
+  location?: { latitude: number; longitude: number } | null;
   categories?: string[];
   id: string;
   title: string;
@@ -68,10 +69,11 @@ export interface UnavailableRange {
 }
 export const discoveryApi = {
   search: (query: string, signal?: AbortSignal) =>
-    publicRequest<{ items: PublicSummary[]; next_cursor: string | null }>(
-      `/listings${query ? `?${query}` : ""}`,
-      { signal },
-    ),
+    publicRequest<{
+      items: PublicSummary[];
+      next_cursor: string | null;
+      map_truncated?: boolean;
+    }>(`/listings${query ? `?${query}` : ""}`, { signal }),
   detail: (id: string, signal?: AbortSignal) =>
     publicRequest<{ listing: PublicDetail }>(`/listings/${id}`, { signal }),
   photos: (id: string) =>

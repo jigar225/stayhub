@@ -14,13 +14,7 @@ from app.date_rules import invalid_date, scheduled, stay_range
 from app.discovery_schemas import PriceBreakdown, PublicPolicy, Quote
 from app.errors import ApiError
 from app.models import CalendarEntry, CancellationPolicy, Listing
-
-POLICY_TERMS = {
-    "Flexible": "100% of nights and guest service fee refunded at least 24 hours before check-in; otherwise 0%. Cleaning refunded before check-in.",
-    "Moderate": "100% at least 5 days before check-in; 50% at least 24 hours before; otherwise 0%. Applies to nights and guest service fee. Cleaning refunded before check-in.",
-    "Firm": "100% at least 30 days before check-in; 50% at least 7 days before; otherwise 0%. Applies to nights and guest service fee. Cleaning refunded before check-in.",
-    "Strict": "100% within 48 hours after booking and before check-in; otherwise 50% at least 14 days before check-in, then 0%. Applies to nights and guest service fee. Cleaning refunded before check-in.",
-}
+from app.policies import describe
 
 
 def price(listing: Listing, check_in: date, check_out: date) -> PriceBreakdown:
@@ -45,7 +39,7 @@ def policy(db: Session, listing: Listing) -> PublicPolicy:
     row = db.get(CancellationPolicy, listing.policy_id)
     assert row is not None
     return PublicPolicy(
-        id=row.id, name=row.name, version=row.version, terms=POLICY_TERMS[row.name]
+        id=row.id, name=row.name, version=row.version, terms=describe(row.definition)
     )
 
 

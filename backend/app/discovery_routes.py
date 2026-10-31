@@ -9,6 +9,7 @@ from pydantic import ValidationError
 from app import discovery_service
 from app.categories import StayCategory
 from app.discovery_filters import Amenity, BrowseFilters, PlaceGroup
+from app.discovery_map import Viewport
 from app.discovery_schemas import (
     AvailabilityResponse,
     PublicListingResponse,
@@ -28,6 +29,11 @@ def browse(
     request: Request,
     db: DB,
     destination: Annotated[str, Query(max_length=100)] = "",
+    map: Literal["true", "false"] = "false",
+    west: float | None = None,
+    south: float | None = None,
+    east: float | None = None,
+    north: float | None = None,
     check_in: date | None = None,
     check_out: date | None = None,
     guests: Annotated[int, Query(ge=1, le=30)] = 1,
@@ -46,6 +52,11 @@ def browse(
     # values differently from the browser's URL parser. Amenity is the one set.
     scalar_fields = {
         "destination",
+        "map",
+        "west",
+        "south",
+        "east",
+        "north",
         "check_in",
         "check_out",
         "guests",
@@ -96,8 +107,39 @@ def browse(
                 "max_price_minor": "Maximum nightly price must be at least the minimum."
             },
         ) from error
+    viewport = None
+    coordinates = [west, south, east, north]
+    if any(value is not None for value in coordinates):
+        if map != "true" or any(value is None for value in coordinates):
+            raise ApiError(
+                422,
+                "validation_error",
+                "Viewport requires map=true and all four bounds.",
+            )
+        try:
+            viewport = Viewport(west=west, south=south, east=east, north=north)
+        except ValidationError:
+            raise ApiError(
+                422, "validation_error", "Use finite valid viewport bounds."
+            ) from None
+    if map == "true" and cursor is not None:
+        raise ApiError(
+            422,
+            "validation_error",
+            "Map results do not use pagination; zoom or search another area.",
+        )
     return discovery_service.browse(
-        db, destination, check_in, check_out, guests, limit, cursor, category, filters
+        db,
+        destination,
+        check_in,
+        check_out,
+        guests,
+        limit,
+        cursor,
+        category,
+        filters,
+        map_view=map == "true",
+        viewport=viewport,
     )
 
 

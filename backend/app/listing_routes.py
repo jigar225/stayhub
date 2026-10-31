@@ -16,6 +16,7 @@ from app.listing_schemas import (
     PhotoOrderInput,
     PhotoReadResponse,
     PoliciesResponse,
+    TimezonesResponse,
     UploadIntentInput,
     UploadIntentResponse,
     VersionInput,
@@ -41,6 +42,11 @@ def mutation_guard(request: Request) -> Callable[[], None]:
 @router.get("/cancellation-policies", response_model=PoliciesResponse)
 def policies(request: Request, db: DB) -> PoliciesResponse:
     return listing_service.policies(db, actor_context(request))
+
+
+@router.get("/timezones", response_model=TimezonesResponse)
+def timezones(request: Request, db: DB) -> TimezonesResponse:
+    return listing_service.timezones(db, actor_context(request))
 
 
 @router.post("/listings", response_model=ListingResponse, status_code=201)

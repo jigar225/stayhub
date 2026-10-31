@@ -167,6 +167,8 @@ def test_cleanup_is_pinned_to_test_bucket_and_managed_prefixes() -> None:
         (isolation.bucket, "stayhub/staging/probe"),
         (isolation.bucket, "stayhub/final/"),
         (isolation.bucket, "stayhub/final/probe"),
+        (isolation.bucket, "stayhub/messages/"),
+        (isolation.bucket, "stayhub/messages/probe"),
     ]
     unexpected = CleanupProbe(unsafe=True)
     with pytest.raises(UnsafeTestStorage, match="outside"):

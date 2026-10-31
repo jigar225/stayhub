@@ -292,6 +292,7 @@ class Reservation(Base):
     financial_version: Mapped[int] = mapped_column(Integer, default=1)
     effective_host_fee_minor: Mapped[int] = mapped_column(Integer, default=0)
     cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class Payment(Base):

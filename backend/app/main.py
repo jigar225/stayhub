@@ -18,6 +18,9 @@ from app.errors import ApiError, error_response
 from app.financial_routes import router as financial_router
 from app.listing_routes import router as listing_router
 from app.location_routes import router as location_router
+from app.message_routes import router as message_router
+from app.notification_routes import router as notification_router
+from app.review_routes import router as review_router
 
 get_settings()  # Fail fast on missing or invalid runtime configuration.
 app = FastAPI(title="StayHub API", version="0.2.0")
@@ -28,6 +31,9 @@ app.include_router(calendar_router)
 app.include_router(discovery_router)
 app.include_router(booking_router)
 app.include_router(financial_router)
+app.include_router(message_router)
+app.include_router(notification_router)
+app.include_router(review_router)
 
 
 @app.middleware("http")

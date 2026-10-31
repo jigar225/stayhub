@@ -11,6 +11,7 @@ import {
 import { PublicLocation } from "../location/PublicLocation";
 import { PublicPhotos } from "./PublicPhotos";
 import { StayAvailability } from "./StayAvailability";
+import { ListingReviews } from "../reviews/ListingReviews";
 import { SearchForm } from "./SearchForm";
 import {
   searchValues,
@@ -285,6 +286,10 @@ export function StayDetail() {
               included in a future booking.
             </p>
           </section>
+          <ListingReviews
+            key={`reviews-${listing.id}`}
+            listingId={listing.id}
+          />
           <StayAvailability
             key={`${listing.id}-${query}`}
             listing={listing}
