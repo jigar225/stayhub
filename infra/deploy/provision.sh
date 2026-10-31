@@ -27,8 +27,8 @@ PY
 export STAYHUB_ROOT="$root"
 export BACKEND_IMAGE=$(cat image.env)
 compose() { docker compose -p stayhub -f deploy/compose.yaml "$@"; }
-compose run --rm --no-deps -v "$PWD/demo:/demo-content:ro" \
+compose run --rm --no-deps -v "$PWD/demo:/demo-content:ro" -v "$root:/host-output" \
   -e PROVISION_MANIFEST=/demo-content/provision.json \
-  -e PROVISION_CREDENTIALS="$root/provisioned-credentials.txt" \
+  -e PROVISION_CREDENTIALS=/host-output/provisioned-credentials.txt \
   api uv run --frozen python -m app.provision_users
 echo "Credentials written to $root/provisioned-credentials.txt (mode 600)."

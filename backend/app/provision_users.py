@@ -15,6 +15,7 @@ import hashlib
 import json
 import os
 import secrets
+import sys
 from datetime import timedelta
 from pathlib import Path
 from typing import Any, Literal
@@ -376,7 +377,13 @@ def main() -> None:
 if __name__ == "__main__":
     try:
         main()
-    except (KeyError, OSError, ValueError, ApiError):
+    except (KeyError, OSError, ValueError, ApiError) as error:
+        # Exception messages never contain generated passwords (those are only
+        # ever written to the private credentials file).
+        print(
+            f"Provisioning failed: {type(error).__name__}: {error}",
+            file=sys.stderr,
+        )
         raise SystemExit(
             "Provisioning is misconfigured or assets are unavailable; "
             "no credentials are displayed."
