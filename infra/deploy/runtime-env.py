@@ -63,10 +63,6 @@ if not 1 <= int(budget) <= 3000:
     raise ValueError("Invalid GEOAPIFY_DAILY_BUDGET configuration")
 values["GEOAPIFY_API_KEY"] = provider_key
 values["GEOAPIFY_DAILY_BUDGET"] = str(int(budget))
-# Explicit seeding may use these credentials; normal deployment never seeds.
-for key, value in app.items():
-    if key.startswith("SEED_"):
-        values[key] = value
 for key, value in values.items():
     if any(c in str(value) for c in "\r\n\x00"):
         raise ValueError(f"Invalid multiline runtime value: {key}")

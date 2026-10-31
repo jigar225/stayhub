@@ -1,3 +1,4 @@
+import json
 import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
@@ -14,7 +15,6 @@ from app.config import get_settings
 from app.db import get_engine
 from app.models import AuthSession, RefreshToken, User, UserRole, now
 from app.security import COOKIE, COOKIE_PATH
-from app.seed import main as seed
 
 PASSWORD = "isolated-test-password!"
 
@@ -320,25 +320,52 @@ def test_rate_limit_recovery_real_clock(client: TestClient, monkeypatch: Any) ->
     )
 
 
-def test_seed_idempotent_preserves_password_and_admin_separate(
-    client: TestClient, monkeypatch: Any
-) -> None:
-    for key in ("GUEST", "HOST", "ADMIN"):
-        monkeypatch.setenv(f"SEED_{key}_NAME", key.title())
-        monkeypatch.setenv(f"SEED_{key}_EMAIL", f"seed-{key.lower()}@example.com")
-        monkeypatch.setenv(f"SEED_{key}_PASSWORD", PASSWORD)
-    seed()
+def test_provision_creates_roles_and_is_idempotent(tmp_path: Any) -> None:
+    from app.provision_users import provision
+
+    manifest = tmp_path / "provision.json"
+    manifest.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "assets": [],
+                "users": [
+                    {
+                        "key": "admin",
+                        "name": "Platform Admin",
+                        "email": "admin-provision@example.com",
+                        "roles": ["admin"],
+                    },
+                    {
+                        "key": "host",
+                        "name": "Host One",
+                        "email": "host-provision@example.com",
+                        "roles": ["guest", "host"],
+                    },
+                ],
+            }
+        )
+    )
+    credentials = tmp_path / "creds.txt"
     with Session(get_engine()) as db:
-        original = {row.email: row.password_hash for row in db.scalars(select(User))}
-    monkeypatch.setenv("SEED_ADMIN_PASSWORD", "different-seed-password!")
-    seed()
+        first = provision(db, manifest, credentials)
+    assert first == []
     with Session(get_engine()) as db:
-        users = list(db.scalars(select(User)))
-        assert len(users) == 3
-        assert {row.email: row.password_hash for row in users} == original
-        admin = next(row for row in users if "admin" in row.email)
-        assert [row.role for row in admin.memberships] == ["admin"]
-    assert login(client, "seed-admin@example.com")["user"]["roles"] == ["admin"]
+        users = {row.email: row for row in db.scalars(select(User))}
+        assert [
+            row.role for row in users["admin-provision@example.com"].memberships
+        ] == ["admin"]
+        assert sorted(
+            row.role for row in users["host-provision@example.com"].memberships
+        ) == ["guest", "host"]
+        original = {email: row.password_hash for email, row in users.items()}
+    assert credentials.exists()
+    assert "admin-provision@example.com" in credentials.read_text()
+    with Session(get_engine()) as db:
+        provision(db, manifest, credentials)
+    with Session(get_engine()) as db:
+        users = {row.email: row for row in db.scalars(select(User))}
+        assert {email: row.password_hash for email, row in users.items()} == original
 
 
 def test_health_errors_no_store_and_oversize(client: TestClient) -> None:

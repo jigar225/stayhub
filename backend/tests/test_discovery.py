@@ -26,14 +26,22 @@ from app import (
     listing_service,
     storage,
 )
+from app.auth_service import AccessContext
 from app.config import get_settings
 from app.db import get_engine
 from app.discovery_schemas import QuoteInput, StayDates
 from app.errors import ApiError
 from app.listing_schemas import ListingPatch, UploadIntentInput
-from app.models import CalendarEntry, DemoAssetPhoto, DemoImport, ListingPhoto
+from app.models import (
+    AuthSession,
+    CalendarEntry,
+    DemoAssetPhoto,
+    DemoImport,
+    ListingPhoto,
+    User,
+)
+from app.provision_users import _stable, provision
 from app.schemas import LoginInput
-from app.seed_content import import_manifest, stable_listing_id
 
 BUSINESS_NOW = datetime(2027, 1, 15, 12, tzinfo=UTC)
 START = date(2027, 2, 1)
@@ -43,6 +51,17 @@ END = date(2027, 2, 6)
 @pytest.fixture(autouse=True)
 def fixed_business_time(monkeypatch: Any) -> None:
     monkeypatch.setattr(business_time, "now", lambda: BUSINESS_NOW)
+
+
+def _provisioned_actor(email: str) -> AccessContext:
+    with Session(get_engine()) as db:
+        user = db.scalar(select(User).where(User.email == email))
+        assert user is not None
+        session = db.scalar(select(AuthSession).where(AuthSession.user_id == user.id))
+        assert session is not None
+        return AccessContext(
+            user_id=user.id, session_id=session.id, expires_at=session.expires_at
+        )
 
 
 def published(
@@ -508,15 +527,12 @@ def test_request_lead_time_and_listing_local_past_not_auth_clock(
         assert auth_service.profile(db, actor).user.id == actor.user_id
 
 
-def test_content_import_partial_resume_rerun_and_preserve_host_edits(
-    tmp_path: Path,
-) -> None:
+def test_provision_rerun_preserves_host_edits(tmp_path: Path) -> None:
     content = image_bytes()
     assets = []
     for index in range(5):
         name = f"photo-{index}.png"
-        if index < 4:
-            (tmp_path / name).write_bytes(content)
+        (tmp_path / name).write_bytes(content)
         assets.append(
             {
                 "id": f"photo-{index}",
@@ -553,22 +569,26 @@ def test_content_import_partial_resume_rerun_and_preserve_host_edits(
         "check_out_time": "11:00",
         "asset_ids": [asset["id"] for asset in assets],
     }
-    path = tmp_path / "manifest.json"
+    user = {
+        "key": "isolated-host",
+        "name": "Isolated Host",
+        "email": "isolated-host@example.com",
+        "roles": ["guest", "host"],
+        "listings": [specification],
+    }
+    path = tmp_path / "provision.json"
     path.write_text(
-        json.dumps({"schema_version": 1, "assets": assets, "listings": [specification]})
+        json.dumps({"schema_version": 1, "assets": assets, "users": [user]})
     )
+    credentials = tmp_path / "creds.txt"
     with Session(get_engine()) as db:
-        actor, _ = account(db, host=True)
-        first = import_manifest(db, actor, path)
-        assert first[0]["status"] == "incomplete" and len(first[0]["photo_ids"]) == 4
-        (tmp_path / "photo-4.png").write_bytes(content)
-        second = import_manifest(db, actor, path)
-        assert (
-            second[0]["status"] == "imported"
-            and second[0]["photo_ids"][:4] == first[0]["photo_ids"]
-        )
-        listing_id = stable_listing_id("isolated-seed-v1")
+        first = provision(db, path, credentials)
+        assert first[0]["status"] == "imported"
+    listing_id = _stable("listing", "isolated-seed-v1")
+    actor = _provisioned_actor("isolated-host@example.com")
+    with Session(get_engine()) as db:
         saved = listing_service.get_listing(db, actor, listing_id).listing
+        assert saved.status == "published"
         changed = listing_service.update_listing(
             db,
             actor,
@@ -576,12 +596,13 @@ def test_content_import_partial_resume_rerun_and_preserve_host_edits(
             ListingPatch(version=saved.version, title="Host edited title"),
         ).listing
         changed = listing_service.unlist(db, actor, listing_id, changed.version).listing
-        third = import_manifest(db, actor, path)
+    with Session(get_engine()) as db:
+        third = provision(db, path, credentials)
         assert third[0]["status"] == "preserved"
+    with Session(get_engine()) as db:
         assert listing_service.get_listing(db, actor, listing_id).listing == changed
-        with db.begin():
-            assert db.scalar(select(func.count()).select_from(DemoImport)) == 1
-            assert db.scalar(select(func.count()).select_from(DemoAssetPhoto)) == 5
+        assert db.scalar(select(func.count()).select_from(DemoImport)) == 1
+        assert db.scalar(select(func.count()).select_from(DemoAssetPhoto)) == 5
 
 
 def test_search_future_horizon_uses_matching_listing_local_date(

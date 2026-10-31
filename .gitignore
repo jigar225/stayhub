@@ -3,6 +3,10 @@
 .env.*
 !.env.example
 
+# One-time provisioned account credentials (never commit).
+provisioned-credentials.txt
+**/provisioned-credentials.txt
+
 # Local planning, handoffs and generated verification evidence.
 /docs/
 /.handoff/

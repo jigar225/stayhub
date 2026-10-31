@@ -361,6 +361,7 @@ exit 0
         target.mkdir(parents=True)
         shutil.copytree(DEPLOY, target / "deploy")
         shutil.copytree(PROJECT / "demo/assets", target / "demo/assets")
+        shutil.copyfile(PROJECT / "demo/provision.json", target / "demo/provision.json")
         if bad:
             (target / "bad").write_text("bad")
         result = subprocess.run(
@@ -411,36 +412,21 @@ exit 0
             (self.root / "docker.log").read_text().splitlines()[-1],
         )
 
-    def test_seed_is_explicit_and_repeatable_with_readonly_assets(self):
+    def test_provision_is_explicit_and_repeatable_with_readonly_assets(self):
         self.assertEqual(self.release("a" * 40).returncode, 0)
-        self.assertNotIn("app.seed", (self.root / "docker.log").read_text())
-        aws = self.bin / "aws"
-        fields = {"JWT_SECRET": "x" * 40}
-        fields.update(
-            {
-                f"SEED_{role}_{field}": "test-only-value"
-                for role in ["GUEST", "HOST", "ADMIN"]
-                for field in ["NAME", "EMAIL", "PASSWORD"]
-            }
-        )
-        aws.write_text(
-            '#!/bin/sh\ncase "$*" in\n *db-secret*) echo \'{"username":"test","password":"secret"}\' ;;\n *) echo \''
-            + json.dumps(fields)
-            + "' ;;\nesac\n"
-        )
+        self.assertNotIn("app.provision_users", (self.root / "docker.log").read_text())
         for _ in range(2):
             result = subprocess.run(
-                ["bash", str(self.root / "current/deploy/seed.sh")],
+                ["bash", str(self.root / "current/deploy/provision.sh")],
                 check=False,
                 env=self.env,
                 capture_output=True,
                 text=True,
             )
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-            self.assertNotIn("test-only-value", result.stdout + result.stderr)
+            self.assertNotIn("test-only-xxxxxxxx", result.stdout + result.stderr)
         log = (self.root / "docker.log").read_text()
-        self.assertEqual(log.count("python -m app.seed\n"), 2)
-        self.assertEqual(log.count("python -m app.seed_content"), 2)
+        self.assertEqual(log.count("python -m app.provision_users"), 2)
         self.assertIn("/demo-content:ro", log)
 
     def test_container_start_failure_recovers(self):

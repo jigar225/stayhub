@@ -38,6 +38,20 @@ def package(project, output):
         ):
             raise ValueError("Licensed demo asset verification failed")
         files[f"demo/assets/{asset['file']}"] = path
+    provision = project / "demo/provision.json"
+    if provision.is_file():
+        spec = json.loads(provision.read_text())
+        for asset in spec["assets"]:
+            path = assets / Path(asset["file"]).name
+            if (
+                not path.resolve().is_relative_to(assets.resolve())
+                or path.is_symlink()
+                or not asset.get("license_url")
+                or path.stat().st_size != asset["bytes"]
+                or hashlib.sha256(path.read_bytes()).hexdigest() != asset["sha256"]
+            ):
+                raise ValueError("Licensed provision asset verification failed")
+        files["demo/provision.json"] = provision
     with (
         output.open("wb") as target,
         gzip.GzipFile(fileobj=target, mode="wb", mtime=0, filename="") as zipped,

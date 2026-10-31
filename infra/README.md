@@ -47,7 +47,7 @@ python3 infra/deploy/upload-config.py
 AWS_PROFILE=stayhub terraform -chdir=infra/runtime output github_variables
 ```
 
-The first script generates JWT_SECRET only if absent and sends it to Secrets Manager, not arguments/logs/state. It creates no seeded accounts. The second sends nonsecret connection/config identifiers to the instance through SSM. It waits for cloud-init; rerun after host replacement. Neither helper prints secrets. Runtime writes root-only `/opt/stayhub/runtime.env`. Demo seeding is a separate explicit operation requiring separately supplied SEED_* values in the application secret; never seed automatically on deploy.
+The first script generates JWT_SECRET only if absent and sends it to Secrets Manager, not arguments/logs/state. It creates no accounts. The second sends nonsecret connection/config identifiers to the instance through SSM. It waits for cloud-init; rerun after host replacement. Neither helper prints secrets. Runtime writes root-only `/opt/stayhub/runtime.env`. Demo accounts/content are a separate explicit operation (`remote-provision.py`) that generates its own credentials; never provision automatically on deploy.
 
 Testing compromise: this initial stack uses the RDS-managed database administrator credentials for migrations and runtime. No database is public, but this is not a least-privilege production DB user. Split migrator/runtime DB users before real-user production. Automatic RDS credential rotation is disabled explicitly to prevent stale container passwords; rotate deliberately and redeploy to refresh credentials. Secrets Manager stores the password without placing it in Terraform state. DATABASE_URL requires TLS (`sslmode=require`); full CA hostname verification remains a production-hardening task.
 
@@ -107,22 +107,22 @@ AWS_PROFILE=stayhub aws ssm send-command --region us-east-1 --instance-ids "$ins
 
 Inspect/wait for that SSM command's success; the send-command response alone does not mean deployed. No release script should be invoked directly outside the locked receiver. Active-identical retries probe without altering files; failed or previous IDs are immutable and need a new commit to redeploy. A manually invoked workflow rebuild can have a different frontend artifact digest for an existing commit; receipt intentionally rejects that conflict instead of replacing active files. Keep the original archive/digest for an exact retry.
 
-### Exact explicit remote seed commands
+### Exact explicit remote provisioning command
 
 After a successful ordinary deployment and initial JWT secret setup, from the project root:
 
 ```sh
 aws sso login --profile stayhub
-# Prompts privately for missing SEED_{GUEST,HOST,ADMIN}_{NAME,EMAIL,PASSWORD};
-# keeps JWT and existing fields unchanged. Use distinct emails and 12–128-char passwords.
-python3 infra/deploy/configure-demo-secrets.py
-# Explicitly provisions accounts/policies and imports licensed listing content:
-python3 infra/deploy/remote-seed.py
-# Safe repeat: completed imports and host edits are preserved, not reset.
-python3 infra/deploy/remote-seed.py
+# Explicitly creates demo users/hosts/guests and published stays with photos:
+python3 infra/deploy/remote-provision.py
+# Safe repeat: completed content and host edits are preserved, not reset.
+python3 infra/deploy/remote-provision.py
+# Fetch the one-time generated credentials file (never printed to logs):
+aws ssm send-command --instance-ids "$instance_id" --document-name AWS-RunShellScript \
+  --parameters commands="cat /opt/stayhub/provisioned-credentials.txt"
 ```
 
-`remote-seed.py` uses the operator's SSO permission to invoke `AWS-RunShellScript`; GitHub's deployment role is deliberately not authorized for that document. It executes `seed.sh` under the same host lock, refreshes secret values, validates all nine seed fields and licensed assets before provisioning, then runs `app.seed` and `app.seed_content` with the selected release's `demo/` mounted **read-only** at `/demo-content`. Normal deployment, bootstrap and workflow never call either seed. No startup seed or destructive reset. Existing account passwords are preserved; if supplied existing-account credentials no longer match, import fails rather than resetting them. An interrupted or concurrently edited incomplete import may require investigation; do not delete markers or host edits to force it through. Demo account creation/content imports are intentionally user-run data mutations and were not run against any existing database during this review.
+`remote-provision.py` uses the operator's SSO permission to invoke `AWS-RunShellScript`; GitHub's deployment role is deliberately not authorized for that document. It executes `provision.sh` under the same host lock, refreshes runtime env, validates every licensed asset, then runs `app.provision_users` with the selected release's `demo/` mounted **read-only** at `/demo-content`. It reads `demo/provision.json` and creates an admin, hosts and guests; each host's stays are published with real stored photos through the normal listing services, inside real per-host sessions. Normal deployment, bootstrap and workflow never call it; no startup provisioning or destructive reset. Reruns are idempotent: existing credentials and content (including host edits/unlisting) are preserved via stable UUIDs and demo markers. Generated account passwords are written only to `/opt/stayhub/provisioned-credentials.txt` (mode `0600`) and never to stdout/logs.
 
 ### Reproducible local checks
 
@@ -409,10 +409,10 @@ For a future authorized deployment, an operator can run
 `python3 infra/deploy/configure-geoapify-secret.py` from the repository root.
 It uses the existing `stayhub` AWS profile and Terraform `release_config`, reads
 the initialized application secret, prompts for the key privately, and preserves
-JWT, seed credentials and other fields. A blank key leaves the secret unchanged.
+JWT and other fields. A blank key leaves the secret unchanged.
 The optional budget is also prompted; AWS input uses a mode-0600 temporary file
 and captured diagnostics. This command updates a secret only: it does not deploy,
-restart services or seed data. Do not run it as part of source-only review.
+restart services or provision data. Do not run it as part of source-only review.
 
 `infra/deploy/runtime-env.py` allowlists these two application-secret fields into
 the root-only backend `runtime.env`; absent key becomes empty and absent budget

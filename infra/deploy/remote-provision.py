@@ -1,4 +1,8 @@
-"""Explicit operator command; uses SSO and never places credentials in SSM parameters."""
+"""Explicit operator command; runs one-time provisioning on the host via SSM.
+
+That run writes a private credentials file on the host; fetch it separately with
+`aws ssm ... cat /opt/stayhub/provisioned-credentials.txt` and keep it out of logs.
+"""
 
 import json
 import os
@@ -13,7 +17,7 @@ variables = json.loads(
     )
 )
 base = ["aws", "--profile", "stayhub", "--region", "us-east-1", "ssm"]
-parameters = {"commands": ["set -eu", "bash /opt/stayhub/current/deploy/seed.sh"]}
+parameters = {"commands": ["set -eu", "bash /opt/stayhub/current/deploy/provision.sh"]}
 command = subprocess.check_output(
     base
     + [
@@ -31,7 +35,7 @@ command = subprocess.check_output(
     ],
     text=True,
 ).strip()
-print("Explicit seed command:", command)
+print("Explicit provisioning command:", command)
 for _attempt in range(120):
     result = subprocess.run(
         base
@@ -50,11 +54,18 @@ for _attempt in range(120):
         status = json.loads(result.stdout)
         if status["Status"] == "Success":
             print(status.get("StandardOutputContent", ""))
+            print(
+                "Fetch credentials with:\n"
+                "  aws ssm send-command --instance-ids "
+                + variables["EC2_INSTANCE_ID"]
+                + " --document-name AWS-RunShellScript "
+                '--parameters commands="cat /opt/stayhub/provisioned-credentials.txt"'
+            )
             break
         if status["Status"] in {"Failed", "Cancelled", "TimedOut"}:
             raise SystemExit(
-                "Seed failed; inspect SSM output. Existing demo edits are not reset."
+                "Provisioning failed; inspect SSM output. Existing content is not reset."
             )
     time.sleep(15)
 else:
-    raise SystemExit("Seed wait timed out; inspect the command before retrying.")
+    raise SystemExit("Provisioning wait timed out; inspect the command before retrying.")

@@ -46,7 +46,7 @@ def extract_verified(archive, destination):
             "frontend/index.html",
             "deploy/release.sh",
             "deploy/compose.yaml",
-            "deploy/seed.sh",
+            "deploy/provision.sh",
             "demo/assets/manifest.json",
         ]:
             if not (destination / required).is_file():

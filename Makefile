@@ -1,6 +1,6 @@
 SHELL := /bin/sh
 DC := docker compose
-.PHONY: dev-up dev-down migrate seed-demo lint format-check typecheck test build smoke-auth restart-check
+.PHONY: dev-up dev-down migrate provision lint format-check typecheck test build smoke-auth restart-check
 
 dev-up:
 	$(DC) up -d --build --wait
@@ -12,8 +12,8 @@ dev-down:
 migrate:
 	$(DC) exec -T api uv run --frozen alembic upgrade head
 
-seed-demo: storage-init
-	$(DC) exec -T api uv run --frozen python -m app.seed
+provision: storage-init
+	$(DC) exec -T api uv run --frozen -e PROVISION_MANIFEST=/demo-content/provision.json python -m app.provision_users
 
 lint:
 	$(DC) exec -T api uv run --frozen ruff check .
@@ -55,10 +55,7 @@ smoke-listings:
 persistence-listings:
 	python3 scripts/listings-persistence.py
 
-.PHONY: seed-content download-demo-assets smoke-discovery
-seed-content:
-	$(DC) exec -T api uv run --frozen python -m app.seed_content
-
+.PHONY: download-demo-assets smoke-discovery
 download-demo-assets:
 	python3 scripts/download-demo-assets.py
 
@@ -90,8 +87,7 @@ review-migrate:
 
 review-seed:
 	docker compose -p stayhub-m5-review -f compose.yaml -f compose.m5-review.yaml exec -T api uv run --frozen python -m app.storage_setup
-	docker compose -p stayhub-m5-review -f compose.yaml -f compose.m5-review.yaml exec -T api uv run --frozen python -m app.seed
-	docker compose -p stayhub-m5-review -f compose.yaml -f compose.m5-review.yaml exec -T api uv run --frozen python -m app.seed_content
+	docker compose -p stayhub-m5-review -f compose.yaml -f compose.m5-review.yaml exec -T api uv run --frozen -e PROVISION_MANIFEST=/demo-content/provision.json python -m app.provision_users
 
 persistence-financial:
 	python3 scripts/m5-persistence.py

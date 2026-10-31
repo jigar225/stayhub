@@ -61,7 +61,7 @@ def extract_verified(archive, destination):
         for required in [
             "deploy/release.sh",
             "deploy/compose.yaml",
-            "deploy/seed.sh",
+            "deploy/provision.sh",
             "demo/assets/manifest.json",
         ]:
             if not (destination / required).is_file():

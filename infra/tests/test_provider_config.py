@@ -69,7 +69,7 @@ class RuntimeProviderTests(unittest.TestCase):
                     "JWT_SECRET": "x" * 40,
                     "GEOAPIFY_API_KEY": KEY,
                     "GEOAPIFY_DAILY_BUDGET": "1500",
-                    "SEED_HOST_EMAIL": "host@example.invalid",
+                    "SEED_HOST_EMAIL": "do-not-forward",
                     "VITE_GEOAPIFY_API_KEY": "do-not-forward",
                     "OTHER": "do-not-forward",
                 },
@@ -77,7 +77,7 @@ class RuntimeProviderTests(unittest.TestCase):
             )
             self.assertEqual(values["GEOAPIFY_API_KEY"], KEY)
             self.assertEqual(values["GEOAPIFY_DAILY_BUDGET"], "1500")
-            self.assertIn("SEED_HOST_EMAIL", values)
+            self.assertNotIn("SEED_HOST_EMAIL", values)
             self.assertNotIn("VITE_GEOAPIFY_API_KEY", values)
             self.assertNotIn("OTHER", values)
             self.assertEqual(stat.S_IMODE((root / "runtime.env").stat().st_mode), 0o600)
