@@ -67,13 +67,18 @@
       "key": "admin",
       "name": "Platform Admin",
       "email": "admin@stayhub.example",
-      "roles": ["admin"]
+      "roles": [
+        "admin"
+      ]
     },
     {
       "key": "host-lisbon",
       "name": "Marta Silva",
       "email": "marta.host@stayhub.example",
-      "roles": ["guest", "host"],
+      "roles": [
+        "guest",
+        "host"
+      ],
       "listings": [
         {
           "demo_key": "prov-marta-lisbon-loft",
@@ -87,15 +92,30 @@
           "beds": 1,
           "baths": 1,
           "description": "Bright loft in the heart of Alfama with river views, walkable to the castle and tram lines.",
-          "amenities": ["Wifi", "Kitchen", "Air conditioning"],
-          "house_rules": ["No smoking indoors", "Quiet after 11 pm"],
+          "amenities": [
+            "Wifi",
+            "Kitchen",
+            "Air conditioning"
+          ],
+          "house_rules": [
+            "No smoking indoors",
+            "Quiet after 11 pm"
+          ],
           "nightly_minor": 12800,
           "cleaning_minor": 3500,
           "policy_name": "Moderate",
           "booking_mode": "instant",
           "check_in_time": "15:00",
           "check_out_time": "11:00",
-          "asset_ids": ["pexels-10161222", "pexels-16051414", "pexels-10168692", "pexels-4468806", "pexels-16978555"]
+          "asset_ids": [
+            "pexels-10161222",
+            "pexels-16051414",
+            "pexels-10168692",
+            "pexels-4468806",
+            "pexels-16978555"
+          ],
+          "latitude": 38.7139,
+          "longitude": -9.1275
         },
         {
           "demo_key": "prov-marta-lisbon-courtyard",
@@ -109,15 +129,30 @@
           "beds": 3,
           "baths": 2,
           "description": "Restored townhouse with a private courtyard, ideal for families exploring Lisbon.",
-          "amenities": ["Wifi", "Kitchen", "Washer"],
-          "house_rules": ["No smoking indoors", "Quiet after 11 pm"],
+          "amenities": [
+            "Wifi",
+            "Kitchen",
+            "Washer"
+          ],
+          "house_rules": [
+            "No smoking indoors",
+            "Quiet after 11 pm"
+          ],
           "nightly_minor": 16400,
           "cleaning_minor": 2500,
           "policy_name": "Flexible",
           "booking_mode": "request",
           "check_in_time": "15:00",
           "check_out_time": "11:00",
-          "asset_ids": ["pexels-16051414", "pexels-10168692", "pexels-4468806", "pexels-16978555", "pexels-10161222"]
+          "asset_ids": [
+            "pexels-16051414",
+            "pexels-10168692",
+            "pexels-4468806",
+            "pexels-16978555",
+            "pexels-10161222"
+          ],
+          "latitude": 38.7106,
+          "longitude": -9.149
         }
       ]
     },
@@ -125,7 +160,10 @@
       "key": "host-goa",
       "name": "Rohan Naik",
       "email": "rohan.host@stayhub.example",
-      "roles": ["guest", "host"],
+      "roles": [
+        "guest",
+        "host"
+      ],
       "listings": [
         {
           "demo_key": "prov-rohan-goa-house",
@@ -139,15 +177,30 @@
           "beds": 3,
           "baths": 2,
           "description": "Spacious garden house surrounded by palms, minutes from Anjuna and Vagator beaches.",
-          "amenities": ["Wifi", "Kitchen", "Pool"],
-          "house_rules": ["No smoking indoors", "Quiet after 11 pm"],
+          "amenities": [
+            "Wifi",
+            "Kitchen",
+            "Pool"
+          ],
+          "house_rules": [
+            "No smoking indoors",
+            "Quiet after 11 pm"
+          ],
           "nightly_minor": 9600,
           "cleaning_minor": 2000,
           "policy_name": "Firm",
           "booking_mode": "instant",
           "check_in_time": "15:00",
           "check_out_time": "11:00",
-          "asset_ids": ["pexels-10168692", "pexels-4468806", "pexels-16978555", "pexels-10161222", "pexels-16051414"]
+          "asset_ids": [
+            "pexels-10168692",
+            "pexels-4468806",
+            "pexels-16978555",
+            "pexels-10161222",
+            "pexels-16051414"
+          ],
+          "latitude": 15.6012,
+          "longitude": 73.7554
         },
         {
           "demo_key": "prov-rohan-goa-room",
@@ -161,15 +214,28 @@
           "beds": 1,
           "baths": 1,
           "description": "Peaceful private room in a heritage Panaji neighbourhood, breakfast included.",
-          "amenities": ["Wifi", "Breakfast"],
-          "house_rules": ["No smoking indoors"],
+          "amenities": [
+            "Wifi",
+            "Breakfast"
+          ],
+          "house_rules": [
+            "No smoking indoors"
+          ],
           "nightly_minor": 7400,
           "cleaning_minor": 1200,
           "policy_name": "Flexible",
           "booking_mode": "request",
           "check_in_time": "14:00",
           "check_out_time": "11:00",
-          "asset_ids": ["pexels-4468806", "pexels-16978555", "pexels-10161222", "pexels-16051414", "pexels-10168692"]
+          "asset_ids": [
+            "pexels-4468806",
+            "pexels-16978555",
+            "pexels-10161222",
+            "pexels-16051414",
+            "pexels-10168692"
+          ],
+          "latitude": 15.4989,
+          "longitude": 73.8278
         }
       ]
     },
@@ -177,7 +243,10 @@
       "key": "host-kyoto",
       "name": "Aiko Tanaka",
       "email": "aiko.host@stayhub.example",
-      "roles": ["guest", "host"],
+      "roles": [
+        "guest",
+        "host"
+      ],
       "listings": [
         {
           "demo_key": "prov-aiko-kyoto-house",
@@ -191,15 +260,30 @@
           "beds": 2,
           "baths": 1,
           "description": "Traditional machiya with a small reading room and garden, near Gion district.",
-          "amenities": ["Wifi", "Kitchen", "Garden"],
-          "house_rules": ["No smoking indoors", "Quiet after 10 pm"],
+          "amenities": [
+            "Wifi",
+            "Kitchen",
+            "Garden"
+          ],
+          "house_rules": [
+            "No smoking indoors",
+            "Quiet after 10 pm"
+          ],
           "nightly_minor": 21000,
           "cleaning_minor": 4000,
           "policy_name": "Strict",
           "booking_mode": "request",
           "check_in_time": "16:00",
           "check_out_time": "10:00",
-          "asset_ids": ["pexels-16978555", "pexels-10161222", "pexels-16051414", "pexels-10168692", "pexels-4468806"]
+          "asset_ids": [
+            "pexels-16978555",
+            "pexels-10161222",
+            "pexels-16051414",
+            "pexels-10168692",
+            "pexels-4468806"
+          ],
+          "latitude": 35.0037,
+          "longitude": 135.7788
         },
         {
           "demo_key": "prov-aiko-kyoto-room",
@@ -213,15 +297,28 @@
           "beds": 1,
           "baths": 1,
           "description": "Compact city room steps from the main station, perfect for short stays.",
-          "amenities": ["Wifi", "Air conditioning"],
-          "house_rules": ["No smoking indoors"],
+          "amenities": [
+            "Wifi",
+            "Air conditioning"
+          ],
+          "house_rules": [
+            "No smoking indoors"
+          ],
           "nightly_minor": 8800,
           "cleaning_minor": 1500,
           "policy_name": "Moderate",
           "booking_mode": "instant",
           "check_in_time": "15:00",
           "check_out_time": "11:00",
-          "asset_ids": ["pexels-10161222", "pexels-16051414", "pexels-10168692", "pexels-4468806", "pexels-16978555"]
+          "asset_ids": [
+            "pexels-10161222",
+            "pexels-16051414",
+            "pexels-10168692",
+            "pexels-4468806",
+            "pexels-16978555"
+          ],
+          "latitude": 34.9858,
+          "longitude": 135.7588
         }
       ]
     },
@@ -229,7 +326,10 @@
       "key": "host-barcelona",
       "name": "Núria Ferrer",
       "email": "nuria.host@stayhub.example",
-      "roles": ["guest", "host"],
+      "roles": [
+        "guest",
+        "host"
+      ],
       "listings": [
         {
           "demo_key": "prov-nuria-barcelona-flat",
@@ -243,15 +343,30 @@
           "beds": 2,
           "baths": 1,
           "description": "Modernist flat with high ceilings and a balcony over the Eixample grid.",
-          "amenities": ["Wifi", "Kitchen", "Balcony"],
-          "house_rules": ["No smoking indoors", "No parties"],
+          "amenities": [
+            "Wifi",
+            "Kitchen",
+            "Balcony"
+          ],
+          "house_rules": [
+            "No smoking indoors",
+            "No parties"
+          ],
           "nightly_minor": 14200,
           "cleaning_minor": 3000,
           "policy_name": "Moderate",
           "booking_mode": "instant",
           "check_in_time": "15:00",
           "check_out_time": "11:00",
-          "asset_ids": ["pexels-16051414", "pexels-4468806", "pexels-16978555", "pexels-10161222", "pexels-10168692"]
+          "asset_ids": [
+            "pexels-16051414",
+            "pexels-4468806",
+            "pexels-16978555",
+            "pexels-10161222",
+            "pexels-10168692"
+          ],
+          "latitude": 41.3926,
+          "longitude": 2.165
         },
         {
           "demo_key": "prov-nuria-barcelona-room",
@@ -265,15 +380,28 @@
           "beds": 1,
           "baths": 1,
           "description": "Cosy room in the Gothic Quarter, surrounded by historic alleys and tapas bars.",
-          "amenities": ["Wifi", "Breakfast"],
-          "house_rules": ["No smoking indoors"],
+          "amenities": [
+            "Wifi",
+            "Breakfast"
+          ],
+          "house_rules": [
+            "No smoking indoors"
+          ],
           "nightly_minor": 9200,
           "cleaning_minor": 1800,
           "policy_name": "Flexible",
           "booking_mode": "request",
           "check_in_time": "14:00",
           "check_out_time": "11:00",
-          "asset_ids": ["pexels-10168692", "pexels-16978555", "pexels-16051414", "pexels-4468806", "pexels-10161222"]
+          "asset_ids": [
+            "pexels-10168692",
+            "pexels-16978555",
+            "pexels-16051414",
+            "pexels-4468806",
+            "pexels-10161222"
+          ],
+          "latitude": 41.3833,
+          "longitude": 2.176
         }
       ]
     },
@@ -281,7 +409,10 @@
       "key": "host-paris",
       "name": "Claire Dubois",
       "email": "claire.host@stayhub.example",
-      "roles": ["guest", "host"],
+      "roles": [
+        "guest",
+        "host"
+      ],
       "listings": [
         {
           "demo_key": "prov-claire-paris-loft",
@@ -295,15 +426,29 @@
           "beds": 1,
           "baths": 1,
           "description": "Charming studio in the Marais with exposed beams and a compact kitchen.",
-          "amenities": ["Wifi", "Kitchen"],
-          "house_rules": ["No smoking indoors", "Quiet after 10 pm"],
+          "amenities": [
+            "Wifi",
+            "Kitchen"
+          ],
+          "house_rules": [
+            "No smoking indoors",
+            "Quiet after 10 pm"
+          ],
           "nightly_minor": 15800,
           "cleaning_minor": 3200,
           "policy_name": "Firm",
           "booking_mode": "instant",
           "check_in_time": "15:00",
           "check_out_time": "11:00",
-          "asset_ids": ["pexels-4468806", "pexels-10161222", "pexels-16978555", "pexels-16051414", "pexels-10168692"]
+          "asset_ids": [
+            "pexels-4468806",
+            "pexels-10161222",
+            "pexels-16978555",
+            "pexels-16051414",
+            "pexels-10168692"
+          ],
+          "latitude": 48.8575,
+          "longitude": 2.359
         },
         {
           "demo_key": "prov-claire-paris-family",
@@ -317,15 +462,31 @@
           "beds": 4,
           "baths": 2,
           "description": "Family home at the foot of Montmartre with a sunny terrace and full kitchen.",
-          "amenities": ["Wifi", "Kitchen", "Terrace", "Washer"],
-          "house_rules": ["No smoking indoors", "No parties"],
+          "amenities": [
+            "Wifi",
+            "Kitchen",
+            "Terrace",
+            "Washer"
+          ],
+          "house_rules": [
+            "No smoking indoors",
+            "No parties"
+          ],
           "nightly_minor": 24500,
           "cleaning_minor": 5000,
           "policy_name": "Strict",
           "booking_mode": "request",
           "check_in_time": "16:00",
           "check_out_time": "10:00",
-          "asset_ids": ["pexels-16978555", "pexels-16051414", "pexels-10161222", "pexels-10168692", "pexels-4468806"]
+          "asset_ids": [
+            "pexels-16978555",
+            "pexels-16051414",
+            "pexels-10161222",
+            "pexels-10168692",
+            "pexels-4468806"
+          ],
+          "latitude": 48.8867,
+          "longitude": 2.335
         }
       ]
     },
@@ -333,7 +494,10 @@
       "key": "host-mumbai",
       "name": "Priya Menon",
       "email": "priya.host@stayhub.example",
-      "roles": ["guest", "host"],
+      "roles": [
+        "guest",
+        "host"
+      ],
       "listings": [
         {
           "demo_key": "prov-priya-mumbai-flat",
@@ -347,15 +511,29 @@
           "beds": 2,
           "baths": 2,
           "description": "Airy flat with Arabian Sea views and a breezy balcony above Carter Road.",
-          "amenities": ["Wifi", "Kitchen", "Air conditioning"],
-          "house_rules": ["No smoking indoors"],
+          "amenities": [
+            "Wifi",
+            "Kitchen",
+            "Air conditioning"
+          ],
+          "house_rules": [
+            "No smoking indoors"
+          ],
           "nightly_minor": 11200,
           "cleaning_minor": 2200,
           "policy_name": "Moderate",
           "booking_mode": "instant",
           "check_in_time": "14:00",
           "check_out_time": "11:00",
-          "asset_ids": ["pexels-10161222", "pexels-4468806", "pexels-10168692", "pexels-16978555", "pexels-16051414"]
+          "asset_ids": [
+            "pexels-10161222",
+            "pexels-4468806",
+            "pexels-10168692",
+            "pexels-16978555",
+            "pexels-16051414"
+          ],
+          "latitude": 19.0596,
+          "longitude": 72.8295
         },
         {
           "demo_key": "prov-priya-mumbai-room",
@@ -369,15 +547,28 @@
           "beds": 1,
           "baths": 1,
           "description": "Heritage room in South Mumbai close to the Gateway of India.",
-          "amenities": ["Wifi", "Breakfast"],
-          "house_rules": ["No smoking indoors"],
+          "amenities": [
+            "Wifi",
+            "Breakfast"
+          ],
+          "house_rules": [
+            "No smoking indoors"
+          ],
           "nightly_minor": 6800,
           "cleaning_minor": 1200,
           "policy_name": "Flexible",
           "booking_mode": "request",
           "check_in_time": "14:00",
           "check_out_time": "11:00",
-          "asset_ids": ["pexels-16051414", "pexels-16978555", "pexels-4468806", "pexels-10161222", "pexels-10168692"]
+          "asset_ids": [
+            "pexels-16051414",
+            "pexels-16978555",
+            "pexels-4468806",
+            "pexels-10161222",
+            "pexels-10168692"
+          ],
+          "latitude": 18.9217,
+          "longitude": 72.831
         }
       ]
     },
@@ -385,7 +576,10 @@
       "key": "host-tokyo",
       "name": "Kenji Sato",
       "email": "kenji.host@stayhub.example",
-      "roles": ["guest", "host"],
+      "roles": [
+        "guest",
+        "host"
+      ],
       "listings": [
         {
           "demo_key": "prov-kenji-tokyo-flat",
@@ -399,15 +593,30 @@
           "beds": 2,
           "baths": 1,
           "description": "Modern flat high above Shibuya crossing with a panoramic city view.",
-          "amenities": ["Wifi", "Kitchen", "Air conditioning"],
-          "house_rules": ["No smoking indoors", "Quiet after 11 pm"],
+          "amenities": [
+            "Wifi",
+            "Kitchen",
+            "Air conditioning"
+          ],
+          "house_rules": [
+            "No smoking indoors",
+            "Quiet after 11 pm"
+          ],
           "nightly_minor": 17800,
           "cleaning_minor": 3600,
           "policy_name": "Moderate",
           "booking_mode": "instant",
           "check_in_time": "15:00",
           "check_out_time": "10:00",
-          "asset_ids": ["pexels-10168692", "pexels-10161222", "pexels-16051414", "pexels-16978555", "pexels-4468806"]
+          "asset_ids": [
+            "pexels-10168692",
+            "pexels-10161222",
+            "pexels-16051414",
+            "pexels-16978555",
+            "pexels-4468806"
+          ],
+          "latitude": 35.6595,
+          "longitude": 139.7005
         },
         {
           "demo_key": "prov-kenji-tokyo-house",
@@ -421,15 +630,30 @@
           "beds": 3,
           "baths": 2,
           "description": "Quiet residential house with a small moss garden near the Meguro river.",
-          "amenities": ["Wifi", "Kitchen", "Garden", "Washer"],
-          "house_rules": ["No smoking indoors"],
+          "amenities": [
+            "Wifi",
+            "Kitchen",
+            "Garden",
+            "Washer"
+          ],
+          "house_rules": [
+            "No smoking indoors"
+          ],
           "nightly_minor": 22600,
           "cleaning_minor": 4200,
           "policy_name": "Firm",
           "booking_mode": "request",
           "check_in_time": "16:00",
           "check_out_time": "10:00",
-          "asset_ids": ["pexels-16978555", "pexels-4468806", "pexels-10161222", "pexels-10168692", "pexels-16051414"]
+          "asset_ids": [
+            "pexels-16978555",
+            "pexels-4468806",
+            "pexels-10161222",
+            "pexels-10168692",
+            "pexels-16051414"
+          ],
+          "latitude": 35.6339,
+          "longitude": 139.712
         }
       ]
     },
@@ -437,7 +661,10 @@
       "key": "host-rome",
       "name": "Giulia Romano",
       "email": "giulia.host@stayhub.example",
-      "roles": ["guest", "host"],
+      "roles": [
+        "guest",
+        "host"
+      ],
       "listings": [
         {
           "demo_key": "prov-giulia-rome-flat",
@@ -451,15 +678,30 @@
           "beds": 2,
           "baths": 1,
           "description": "Warm flat in Trastevere with a private terrace draped in bougainvillea.",
-          "amenities": ["Wifi", "Kitchen", "Terrace"],
-          "house_rules": ["No smoking indoors", "No parties"],
+          "amenities": [
+            "Wifi",
+            "Kitchen",
+            "Terrace"
+          ],
+          "house_rules": [
+            "No smoking indoors",
+            "No parties"
+          ],
           "nightly_minor": 15400,
           "cleaning_minor": 2900,
           "policy_name": "Moderate",
           "booking_mode": "instant",
           "check_in_time": "15:00",
           "check_out_time": "11:00",
-          "asset_ids": ["pexels-16051414", "pexels-10168692", "pexels-16978555", "pexels-4468806", "pexels-10161222"]
+          "asset_ids": [
+            "pexels-16051414",
+            "pexels-10168692",
+            "pexels-16978555",
+            "pexels-4468806",
+            "pexels-10161222"
+          ],
+          "latitude": 41.889,
+          "longitude": 12.469
         },
         {
           "demo_key": "prov-giulia-rome-room",
@@ -473,15 +715,28 @@
           "beds": 1,
           "baths": 1,
           "description": "Bright room in Monti, a short walk from the Colosseum.",
-          "amenities": ["Wifi", "Breakfast"],
-          "house_rules": ["No smoking indoors"],
+          "amenities": [
+            "Wifi",
+            "Breakfast"
+          ],
+          "house_rules": [
+            "No smoking indoors"
+          ],
           "nightly_minor": 8900,
           "cleaning_minor": 1600,
           "policy_name": "Flexible",
           "booking_mode": "request",
           "check_in_time": "14:00",
           "check_out_time": "11:00",
-          "asset_ids": ["pexels-10161222", "pexels-16978555", "pexels-16051414", "pexels-10168692", "pexels-4468806"]
+          "asset_ids": [
+            "pexels-10161222",
+            "pexels-16978555",
+            "pexels-16051414",
+            "pexels-10168692",
+            "pexels-4468806"
+          ],
+          "latitude": 41.8945,
+          "longitude": 12.488
         }
       ]
     },
@@ -489,7 +744,10 @@
       "key": "host-nyc",
       "name": "James Carter",
       "email": "james.host@stayhub.example",
-      "roles": ["guest", "host"],
+      "roles": [
+        "guest",
+        "host"
+      ],
       "listings": [
         {
           "demo_key": "prov-james-nyc-loft",
@@ -503,15 +761,30 @@
           "beds": 2,
           "baths": 1,
           "description": "Open cast-iron loft in SoHo with soaring ceilings and huge windows.",
-          "amenities": ["Wifi", "Kitchen", "Air conditioning"],
-          "house_rules": ["No smoking indoors", "No parties"],
+          "amenities": [
+            "Wifi",
+            "Kitchen",
+            "Air conditioning"
+          ],
+          "house_rules": [
+            "No smoking indoors",
+            "No parties"
+          ],
           "nightly_minor": 26800,
           "cleaning_minor": 5200,
           "policy_name": "Strict",
           "booking_mode": "request",
           "check_in_time": "16:00",
           "check_out_time": "11:00",
-          "asset_ids": ["pexels-4468806", "pexels-16051414", "pexels-10161222", "pexels-10168692", "pexels-16978555"]
+          "asset_ids": [
+            "pexels-4468806",
+            "pexels-16051414",
+            "pexels-10161222",
+            "pexels-10168692",
+            "pexels-16978555"
+          ],
+          "latitude": 40.724,
+          "longitude": -74.001
         },
         {
           "demo_key": "prov-james-nyc-room",
@@ -525,15 +798,28 @@
           "beds": 1,
           "baths": 1,
           "description": "Cosy room in a Williamsburg brownstone near the L train.",
-          "amenities": ["Wifi", "Kitchen"],
-          "house_rules": ["No smoking indoors"],
+          "amenities": [
+            "Wifi",
+            "Kitchen"
+          ],
+          "house_rules": [
+            "No smoking indoors"
+          ],
           "nightly_minor": 12400,
           "cleaning_minor": 2400,
           "policy_name": "Moderate",
           "booking_mode": "instant",
           "check_in_time": "15:00",
           "check_out_time": "11:00",
-          "asset_ids": ["pexels-10168692", "pexels-10161222", "pexels-16978555", "pexels-4468806", "pexels-16051414"]
+          "asset_ids": [
+            "pexels-10168692",
+            "pexels-10161222",
+            "pexels-16978555",
+            "pexels-4468806",
+            "pexels-16051414"
+          ],
+          "latitude": 40.7143,
+          "longitude": -73.957
         }
       ]
     },
@@ -541,7 +827,10 @@
       "key": "host-cape-town",
       "name": "Thandi Mokoena",
       "email": "thandi.host@stayhub.example",
-      "roles": ["guest", "host"],
+      "roles": [
+        "guest",
+        "host"
+      ],
       "listings": [
         {
           "demo_key": "prov-thandi-capetown-house",
@@ -555,15 +844,31 @@
           "beds": 3,
           "baths": 3,
           "description": "Beach house facing the Atlantic with an outdoor deck and mountain views.",
-          "amenities": ["Wifi", "Kitchen", "Pool", "Washer"],
-          "house_rules": ["No smoking indoors", "No parties"],
+          "amenities": [
+            "Wifi",
+            "Kitchen",
+            "Pool",
+            "Washer"
+          ],
+          "house_rules": [
+            "No smoking indoors",
+            "No parties"
+          ],
           "nightly_minor": 19800,
           "cleaning_minor": 3800,
           "policy_name": "Firm",
           "booking_mode": "instant",
           "check_in_time": "15:00",
           "check_out_time": "10:00",
-          "asset_ids": ["pexels-16978555", "pexels-16051414", "pexels-4468806", "pexels-10161222", "pexels-10168692"]
+          "asset_ids": [
+            "pexels-16978555",
+            "pexels-16051414",
+            "pexels-4468806",
+            "pexels-10161222",
+            "pexels-10168692"
+          ],
+          "latitude": -33.95,
+          "longitude": 18.377
         },
         {
           "demo_key": "prov-thandi-capetown-flat",
@@ -577,15 +882,29 @@
           "beds": 2,
           "baths": 1,
           "description": "Garden flat in the City Bowl below Table Mountain, walkable to Kloof Street cafés.",
-          "amenities": ["Wifi", "Kitchen", "Garden"],
-          "house_rules": ["No smoking indoors"],
+          "amenities": [
+            "Wifi",
+            "Kitchen",
+            "Garden"
+          ],
+          "house_rules": [
+            "No smoking indoors"
+          ],
           "nightly_minor": 10600,
           "cleaning_minor": 2000,
           "policy_name": "Moderate",
           "booking_mode": "request",
           "check_in_time": "14:00",
           "check_out_time": "10:00",
-          "asset_ids": ["pexels-10161222", "pexels-10168692", "pexels-16051414", "pexels-16978555", "pexels-4468806"]
+          "asset_ids": [
+            "pexels-10161222",
+            "pexels-10168692",
+            "pexels-16051414",
+            "pexels-16978555",
+            "pexels-4468806"
+          ],
+          "latitude": -33.933,
+          "longitude": 18.412
         }
       ]
     },
@@ -593,25 +912,153 @@
       "key": "guest-arjun",
       "name": "Arjun Desai",
       "email": "arjun.guest@stayhub.example",
-      "roles": ["guest"]
+      "roles": [
+        "guest"
+      ]
     },
-    { "key": "guest-sofia", "name": "Sofia Rossi", "email": "sofia.guest@stayhub.example", "roles": ["guest"] },
-    { "key": "guest-liam", "name": "Liam O'Brien", "email": "liam.guest@stayhub.example", "roles": ["guest"] },
-    { "key": "guest-yuki", "name": "Yuki Nakamura", "email": "yuki.guest@stayhub.example", "roles": ["guest"] },
-    { "key": "guest-emma", "name": "Emma Schmidt", "email": "emma.guest@stayhub.example", "roles": ["guest"] },
-    { "key": "guest-noah", "name": "Noah Williams", "email": "noah.guest@stayhub.example", "roles": ["guest"] },
-    { "key": "guest-ana", "name": "Ana García", "email": "ana.guest@stayhub.example", "roles": ["guest"] },
-    { "key": "guest-wei", "name": "Wei Chen", "email": "wei.guest@stayhub.example", "roles": ["guest"] },
-    { "key": "guest-fatima", "name": "Fatima Al-Sayed", "email": "fatima.guest@stayhub.example", "roles": ["guest"] },
-    { "key": "guest-lucas", "name": "Lucas Martin", "email": "lucas.guest@stayhub.example", "roles": ["guest"] },
-    { "key": "guest-mia", "name": "Mia Andersen", "email": "mia.guest@stayhub.example", "roles": ["guest"] },
-    { "key": "guest-omar", "name": "Omar Haddad", "email": "omar.guest@stayhub.example", "roles": ["guest"] },
-    { "key": "guest-chloe", "name": "Chloé Laurent", "email": "chloe.guest@stayhub.example", "roles": ["guest"] },
-    { "key": "guest-diego", "name": "Diego Fernández", "email": "diego.guest@stayhub.example", "roles": ["guest"] },
-    { "key": "guest-hana", "name": "Hana Kim", "email": "hana.guest@stayhub.example", "roles": ["guest"] },
-    { "key": "guest-peter", "name": "Peter Novak", "email": "peter.guest@stayhub.example", "roles": ["guest"] },
-    { "key": "guest-zara", "name": "Zara Ahmed", "email": "zara.guest@stayhub.example", "roles": ["guest"] },
-    { "key": "guest-marco", "name": "Marco Bianchi", "email": "marco.guest@stayhub.example", "roles": ["guest"] },
-    { "key": "guest-nina", "name": "Nina Petrova", "email": "nina.guest@stayhub.example", "roles": ["guest"] }
+    {
+      "key": "guest-sofia",
+      "name": "Sofia Rossi",
+      "email": "sofia.guest@stayhub.example",
+      "roles": [
+        "guest"
+      ]
+    },
+    {
+      "key": "guest-liam",
+      "name": "Liam O'Brien",
+      "email": "liam.guest@stayhub.example",
+      "roles": [
+        "guest"
+      ]
+    },
+    {
+      "key": "guest-yuki",
+      "name": "Yuki Nakamura",
+      "email": "yuki.guest@stayhub.example",
+      "roles": [
+        "guest"
+      ]
+    },
+    {
+      "key": "guest-emma",
+      "name": "Emma Schmidt",
+      "email": "emma.guest@stayhub.example",
+      "roles": [
+        "guest"
+      ]
+    },
+    {
+      "key": "guest-noah",
+      "name": "Noah Williams",
+      "email": "noah.guest@stayhub.example",
+      "roles": [
+        "guest"
+      ]
+    },
+    {
+      "key": "guest-ana",
+      "name": "Ana García",
+      "email": "ana.guest@stayhub.example",
+      "roles": [
+        "guest"
+      ]
+    },
+    {
+      "key": "guest-wei",
+      "name": "Wei Chen",
+      "email": "wei.guest@stayhub.example",
+      "roles": [
+        "guest"
+      ]
+    },
+    {
+      "key": "guest-fatima",
+      "name": "Fatima Al-Sayed",
+      "email": "fatima.guest@stayhub.example",
+      "roles": [
+        "guest"
+      ]
+    },
+    {
+      "key": "guest-lucas",
+      "name": "Lucas Martin",
+      "email": "lucas.guest@stayhub.example",
+      "roles": [
+        "guest"
+      ]
+    },
+    {
+      "key": "guest-mia",
+      "name": "Mia Andersen",
+      "email": "mia.guest@stayhub.example",
+      "roles": [
+        "guest"
+      ]
+    },
+    {
+      "key": "guest-omar",
+      "name": "Omar Haddad",
+      "email": "omar.guest@stayhub.example",
+      "roles": [
+        "guest"
+      ]
+    },
+    {
+      "key": "guest-chloe",
+      "name": "Chloé Laurent",
+      "email": "chloe.guest@stayhub.example",
+      "roles": [
+        "guest"
+      ]
+    },
+    {
+      "key": "guest-diego",
+      "name": "Diego Fernández",
+      "email": "diego.guest@stayhub.example",
+      "roles": [
+        "guest"
+      ]
+    },
+    {
+      "key": "guest-hana",
+      "name": "Hana Kim",
+      "email": "hana.guest@stayhub.example",
+      "roles": [
+        "guest"
+      ]
+    },
+    {
+      "key": "guest-peter",
+      "name": "Peter Novak",
+      "email": "peter.guest@stayhub.example",
+      "roles": [
+        "guest"
+      ]
+    },
+    {
+      "key": "guest-zara",
+      "name": "Zara Ahmed",
+      "email": "zara.guest@stayhub.example",
+      "roles": [
+        "guest"
+      ]
+    },
+    {
+      "key": "guest-marco",
+      "name": "Marco Bianchi",
+      "email": "marco.guest@stayhub.example",
+      "roles": [
+        "guest"
+      ]
+    },
+    {
+      "key": "guest-nina",
+      "name": "Nina Petrova",
+      "email": "nina.guest@stayhub.example",
+      "roles": [
+        "guest"
+      ]
+    }
   ]
 }
